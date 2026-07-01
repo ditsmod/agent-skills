@@ -50,6 +50,7 @@ The `@ditsmod/core` contains only the bare-minimum foundational functionality (D
   import { SomeService } from '#services/some-service';
   import { OtherService } from './other-service';
   ```
+  Group imports only if there are more than two imports in the same file.
 
 ## Ditsmod rules
 

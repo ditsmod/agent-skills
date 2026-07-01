@@ -22,7 +22,7 @@ Place values by lifetime and override needs:
 - Use `providersPerRou` for route-level behavior.
 - Use `providersPerReq` for request-scoped services and values that must not be shared across HTTP requests.
 
-If a service depends on a config or helper, register that dependency in the same provider array or in an ancestor array. Do not put a dependency only in a child scope.
+If a service depends on a config or helper, register that dependency in the same provider array or in an ancestor array. Do not put a dependency in a child scope.
 
 ## Tokens And Typed Config
 
@@ -130,7 +130,7 @@ export const adminRouteProviders = [
 ];
 ```
 
-If the same regular token appears more than once in one provider array, the last provider wins. Use this deliberately for app-level replacement, but avoid accidental duplicates in large arrays.
+If the same regular token appears more than once in one provider array, the last provider wins.
 
 ## Multi-Providers
 
@@ -153,7 +153,7 @@ export const auditProviders = [
 
 Do not mix regular and multi-providers for the same token in one injector. If a child injector defines multi-providers for the same token, it returns its own array instead of merging parent values.
 
-For substitutable defaults from external modules, prefer a multi-provider entry that points to a class via `useToken`, then override that class:
+To provide substitutable defaults, external modules should prefer a multi-provider entry that points to a class via `TokenProvider` over other provider types:
 
 ```ts
 export const providers = [
@@ -188,21 +188,21 @@ export class CurrentUserWriter {
 }
 ```
 
-Use `@ctx(KEY)` in method parameters when a value should be read from `Context`. Ensure `ctxProviders` are available unless the REST module already provides them through `CtxModule`.
+Use `@ctx(KEY)` in method parameters when a value should be read from `Context`.
 
 ## Parameter Decorators
 
 - Use `@inject(token)` for non-class tokens and implementation aliases.
 - Use `@optional()` when a missing provider should produce `undefined` instead of an error.
-- Use `@inject(token, inputData)` with `@input` for contextual construction data; the dependency created with input data is not cached.
+- Use `@inject(SomeClass, inputData)` with `@input` in `SomeClass` for contextual construction data; the dependency created with input data is not cached.
 - Use `@fromSelf()` only when a dependency must come from the current provider scope.
 - Use `@skipSelf()` only when a dependency must come from an ancestor scope.
 
 ## App Debugging Checklist
 
-1. Confirm the failing token exists at runtime; replace interfaces/types with `InjectionToken<T>`.
+1. Confirm the failing token exists at runtime; replace interfaces/types with instance of `InjectionToken<T>`.
 2. Confirm the consumer service/controller is registered at a scope that can see all its dependencies.
-3. If an override is ignored, check whether the consuming service is created in a parent injector.
+3. If an override is ignored, check whether the consuming service is created in a child injector.
 4. If request data leaks across requests, move mutable data out of app/module singletons and into request scope or `Context`.
 5. If a multi-provider result is incomplete, check whether a child scope replaced the parent multi-provider array.
-6. If a function factory fails, verify every item in `deps` has its own provider.
+6. If a function factory fails, verify every item in `deps` has a corresponding token.
