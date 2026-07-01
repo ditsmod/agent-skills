@@ -1,6 +1,6 @@
 ---
 name: ditsmod-dependency-injection
-description: Practical guidance for using dependency injection in Ditsmod applications. Use when building or fixing application services, controllers, guards, interceptors, modules, provider configuration, typed InjectionToken values, provider overrides, multi-providers, request-scoped data, Context, ctxProviders, and parameter decorators in apps built with @ditsmod/rest or other Ditsmod application packages.
+description: Practical guidance for using dependency injection in Ditsmod applications. Use when building or fixing application services, controllers, guards, interceptors, modules, provider configuration, typed InjectionToken values, provider overrides, multi-providers, request-scoped data, Context, and parameter decorators in apps built with @ditsmod/rest or other Ditsmod application packages.
 ---
 
 # Ditsmod Dependency Injection
@@ -9,13 +9,7 @@ Use this skill when writing application code that consumes Ditsmod DI. Keep the 
 
 ## Application Mental Model
 
-Ditsmod app provider arrays map to injector levels:
-
-```txt
-providersPerApp -> providersPerMod -> providersPerRou -> providersPerReq
-```
-
-Place values by lifetime and override needs:
+Ditsmod app provider arrays map to injector levels. Place values by lifetime and override needs:
 
 - Use `providersPerApp` for app-wide singletons and default configuration.
 - Use `providersPerMod` for module-specific services or module-level configuration overrides.
@@ -24,148 +18,83 @@ Place values by lifetime and override needs:
 
 If a service depends on a config or helper, register that dependency in the same provider array or in an ancestor array. Do not put a dependency in a child scope.
 
-## Tokens And Typed Config
+## Tokens & Providers Configuration
 
-Use a class as a token only when the dependency is actually that class. For interfaces, arrays, plain objects, and configuration values, create an `InjectionToken<T>`.
+### Token Constraints
+- **Allowed Tokens:** Class references, string or numeric literals, symbols, or `InjectionToken<T>` instances.
+- **Strict Forbidden:** TypeScript `interface`, `type`, `enum`, or `declare` constructs **cannot** be used as tokens because they do not exist in compiled JavaScript. Do not import tokens using the `type` keyword.
 
-```ts
-// tokens.ts
-import { InjectionToken } from '@ditsmod/core';
+### Dependency Forms
+- **Short Form:** `constructor(private service1: Service1)` (Allowed only when the token is exactly the class type).
+- **Long Form:** Required when injecting interfaces, arrays, or custom tokens. Use the `@inject()` decorator:
+  ```ts
+  constructor(@inject(SOME_TOKEN) private items: InterfaceOfItem[]) {}
+  ```
 
-export interface AuthConfig {
-  issuer: string;
-  audience: string;
-}
+*Recommendation:* Always use `const SOME_TOKEN = new InjectionToken<T>('SOME_TOKEN')` for long-form type safety.
 
-export const AUTH_CONFIG = new InjectionToken<AuthConfig>('AUTH_CONFIG');
-```
-
-Inject non-class values with `@inject()`:
-
-```ts
-import { inject, injectable } from '@ditsmod/core';
-import { AUTH_CONFIG, type AuthConfig } from './tokens.js';
-
-@injectable()
-export class AuthService {
-  constructor(@inject(AUTH_CONFIG) private config: AuthConfig) {}
-}
-```
-
-Do not use TypeScript-only entities as runtime tokens: `interface`, `type`, `declare`, or imports written with `import type`.
-
-## Provider Recipes
-
-Use `useValue` for static config:
+### Provider Types Syntax
 
 ```ts
-import { type Provider } from '@ditsmod/core';
-import { AUTH_CONFIG } from './tokens.js';
+// 1. ValueProvider
+{ token: 'token1', useValue: 'some value' }
 
-export const authProviders: Provider[] = [
-  { token: AUTH_CONFIG, useValue: { issuer: 'https://auth.example.com', audience: 'api' } },
-];
+// 2. ClassProvider
+{ token: Service2, useClass: ExtendedService2 }
+
+// 3. FactoryProvider (Class-based - Recommended)
+// Requires @factoryMethod() on the target method
+{ token: 'token3', useFactory: [ClassWithFactory, ClassWithFactory.prototype.method1] }
+
+// 4. FactoryProvider (Function-based)
+// Parameters must be explicitly provided in 'deps'
+{ token: 'token4', deps: [Dependency1, Dependency2], useFactory: myFunction }
+
+// 5. TokenProvider (Alias creation)
+{ token: ServiceAlias, useToken: RealService }
 ```
 
-Use `useClass` for swapping implementations:
+> **Duplicate Providers Rule:** If multiple regular providers share the same token, the **last** provider in the array overrides all previous ones.
+
+## Injector Hierarchy & Encapsulation
+
+Ditsmod operates on a hierarchical injector structure: `App` (Application) -> `Mod` (Module) -> `Rou` (Route) -> `Req` (Request).
+
+### The Hierarchy Golden Rule
+
+> **"If a provider depends on another provider, the dependency must not be placed at a lower level of the hierarchy (in child injectors)."**
+
+- **Resolution Path:** Child injectors can look up the hierarchy chain to resolve dependencies in parent injectors, but parent injectors **never** query child injectors.
+- **State & Caching:** Instances are cached within the specific injector level that registered the provider. If a child injector resolves a token from a parent, the instance lives and caches in the parent.
+
+### Debugging & Naming Injectors
+
+Always explicitly name injectors when creating them manually to make error `Resolution paths` scannable:
 
 ```ts
-export const authProviders = [
-  { token: AuthService, useClass: JwtAuthService },
-];
+const child = parent.resolveAndCreateChild([Provider], 'childInjectorName');
 ```
 
-Use `useToken` for aliases:
+### Advanced Hierarchy Methods
 
-```ts
-export const authProviders = [
-  JwtAuthService,
-  { token: AuthService, useToken: JwtAuthService },
-];
-```
-
-Use a class factory when the factory has dependencies or decorated parameters:
-
-```ts
-import { factoryMethod, inject } from '@ditsmod/core';
-import { AUTH_CONFIG, type AuthConfig } from './tokens.js';
-
-class AuthClientFactory {
-  @factoryMethod()
-  create(@inject(AUTH_CONFIG) config: AuthConfig) {
-    return new AuthClient(config.issuer, config.audience);
-  }
-}
-
-export const authProviders = [
-  { token: AuthClient, useFactory: [AuthClientFactory, AuthClientFactory.prototype.create] },
-];
-```
-
-Use a function factory only when plain token dependencies are enough; `deps` accepts tokens, not providers.
-
-## Provider Placement
-
-When a user asks where to put a provider, choose the highest scope that is still correct:
-
-- Put shared defaults in `providersPerApp`.
-- Put a feature module's private services in `providersPerMod`.
-- Put route behavior and route-specific overrides in `providersPerRou`.
-- Put request-owned mutable state in `providersPerReq` or in `Context`, not in app/module singletons.
-
-If a child scope overrides a config but the service using that config is registered in a parent scope, the service will still use the parent-visible config. Register the service in the child scope too when it must consume the child override.
-
-## Overrides
-
-For feature-specific configuration, override the token at the feature scope and make sure consumers are created at that same scope or lower:
-
-```ts
-export const defaultProviders = [
-  { token: AUTH_CONFIG, useValue: { issuer: 'https://auth.example.com', audience: 'api' } },
-];
-
-export const adminRouteProviders = [
-  AuthService,
-  { token: AUTH_CONFIG, useValue: { issuer: 'https://auth.example.com', audience: 'admin-api' } },
-];
-```
-
-If the same regular token appears more than once in one provider array, the last provider wins.
+- `injector.pull(Token)`: Used in child injectors to force pulling a provider from the parent registry and instantiating it contextually within the child level (resolving child-level dependencies) *without* caching it globally.
+- `constructor(private injector: Injector)`: Inject the current injector level directly into a service for patterns like lazy-loading dependencies.
 
 ## Multi-Providers
 
-Use multi-providers for extensible ordered lists such as interceptors or plugin-style handlers:
+- Used to pass multiple values under a single token, returning an array of values.
+- **Constraint:** You **cannot** mix regular providers and multi-providers for the same token within the same injector.
+- **Override Pattern:** To substitute a multi-provider from an external module, use a `TokenProvider` pointing to a custom `ClassProvider`:
 
 ```ts
-import { InjectionToken } from '@ditsmod/core';
-
-export interface AuditHook {
-  run(event: string): void;
-}
-
-export const AUDIT_HOOKS = new InjectionToken<AuditHook[]>('AUDIT_HOOKS');
-
-export const auditProviders = [
-  { token: AUDIT_HOOKS, useClass: ConsoleAuditHook, multi: true },
-  { token: AUDIT_HOOKS, useClass: MetricsAuditHook, multi: true },
-];
-```
-
-Do not mix regular and multi-providers for the same token in one injector. If a child injector defines multi-providers for the same token, it returns its own array instead of merging parent values.
-
-To provide substitutable defaults, external modules should prefer a multi-provider entry that points to a class via `TokenProvider` over other provider types:
-
-```ts
-export const providers = [
-  { token: AUDIT_HOOKS, useToken: DefaultAuditHook, multi: true },
-  DefaultAuditHook,
-  { token: DefaultAuditHook, useClass: AppAuditHook },
-];
+{ token: HTTP_INTERCEPTORS, useToken: DefaultInterceptor, multi: true },
+DefaultInterceptor,
+{ token: DefaultInterceptor, useClass: MyInterceptor }
 ```
 
 ## Request Data And Context
 
-Use `Context` for values produced after injector creation, especially data produced by interceptors or guards and consumed by controllers or services later in the same request.
+Use `Context` for values produced after injector creation, especially data produced by interceptors or guards and consumed by controllers or services later in the same request. Use as a mutable data intermediary across the immutable injector hierarchy.
 
 Use `getSymbol<T>()` for typed context keys:
 
@@ -188,15 +117,21 @@ export class CurrentUserWriter {
 }
 ```
 
-Use `@ctx(KEY)` in method parameters when a value should be read from `Context`.
+### Method Parameter Injection
 
-## Parameter Decorators
+To directly inject context values into class or controller methods, use the `@ctx()` decorator:
 
-- Use `@inject(token)` for non-class tokens and implementation aliases.
-- Use `@optional()` when a missing provider should produce `undefined` instead of an error.
-- Use `@inject(SomeClass, inputData)` with `@input` in `SomeClass` for contextual construction data; the dependency created with input data is not cached.
-- Use `@fromSelf()` only when a dependency must come from the current provider scope.
-- Use `@skipSelf()` only when a dependency must come from an ancestor scope.
+```ts
+method1(@ctx('key1') param1: any) { ... }
+```
+
+## Parameter Decorators Reference
+
+- `@inject(token)`: for non-class tokens and implementation aliases.
+- `@input`: Used in constructor parameters to capture contextual data passed down from a parent `@inject(Dependency, 'contextual-data')` call.
+- `@optional()`: Tells DI not to throw an error if no provider exists for this token (injects `undefined`).
+- `@fromSelf()`: Restricts DI lookup strictly to the current injector level; skips parent lookup.
+- `@skipSelf()`: Bypasses the current injector level immediately and begins the resolution chain from the parent injector.
 
 ## App Debugging Checklist
 

@@ -1,6 +1,6 @@
 # Ditsmod Agent Skills
 
-This file provides guidance to AI coding agents like Codex, Claude Code, Gemini CLI, GitHub Copilot, and other AI coding assistants when working with code in this repository.
+This file provides guidance to AI coding agents like Codex, Claude Code, Gemini CLI, GitHub Copilot, and other AI coding assistants when working with TypeScript code.
 
 [Ditsmod][1] is a Node.js-based web framework designed for building highly extensible and fast applications. Has native modules for REST and tRPC.
 
