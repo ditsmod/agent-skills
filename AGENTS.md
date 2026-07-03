@@ -4,6 +4,8 @@ This repository contains a Ditsmod application.
 
 Ditsmod is TypeScript Node.js framework based on decorators, modules, dependency injection, extensions, metadata reflection, and explicit module composition.
 
+The framework requires Node.js >=v24.0.0.
+
 ## Introduction to Ditsmod Packages
 
 The core of the framework resides in `@ditsmod/core`, and all other Ditsmod packages depend on it. This dependency is specified via `peerDependencies` in each package's `package.json`.
@@ -18,6 +20,7 @@ The `@ditsmod/core` contains only the bare-minimum foundational functionality (D
 - Decorator names start with lowercase.
 - Prefer ESM syntax and do not introduce CommonJS unless explicitly required.
 - Prefer native Node.js "Subpath Imports" (starting with `#`) over TypeScript `paths` (which are only defined in `tsconfig.json`). Subpath imports are runtime-resolved and more portable. Aliases starting with `#` must resolve to the compiled JavaScript directory (usually `dist`) in the `package.json` `imports` field. Additionally, these same aliases must be defined in TypeScript's `paths` inside `tsconfig.json`, but there they must resolve to the source TypeScript directory (`src`). This ensures that the runtime uses the compiled JavaScript, while the TypeScript compiler and IDE use the original source files for type-checking and autocompletion. For example:
+
   ```json
   // package.json
   {
@@ -26,6 +29,7 @@ The `@ditsmod/core` contains only the bare-minimum foundational functionality (D
     }
   }
   ```
+
   ```json
   // tsconfig.json
   "compilerOptions": {
@@ -40,31 +44,15 @@ The `@ditsmod/core` contains only the bare-minimum foundational functionality (D
 
   ```ts
   // 1. Built-in Node.js modules or non-Ditsmod external modules
-  import path from 'node:path';
-  import axios from 'axios';
+  import path from "node:path";
+  import axios from "axios";
 
   // 2. Ditsmod-external modules
-  import { inject } from '@ditsmod/core';
+  import { inject } from "@ditsmod/core";
 
   // 3. Subpath Imports / Alias imports / Local / Relative imports
-  import { SomeService } from '#services/some-service';
-  import { OtherService } from './other-service';
+  import { SomeService } from "#services/some-service";
+  import { OtherService } from "./other-service";
   ```
+
   Group imports only if there are more than two imports in the same file.
-
-## Testing
-
-Tests are part of the architecture.
-
-When changing behavior:
-
-- update existing tests;
-- add regression tests.
-
-## Communication
-
-When explaining changes:
-
-- mention affected modules;
-- explain architectural decisions;
-- highlight possible migration concerns.
