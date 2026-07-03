@@ -27,22 +27,22 @@ This skill is the primary source of truth for Ditsmod DI logic to minimize file-
 Recognize these provider forms:
 
 ```ts
-import { InjectionToken, type Provider } from "@ditsmod/core";
+import { InjectionToken, type Provider } from '@ditsmod/core';
 
 class Logger {}
 class ConsoleLogger extends Logger {}
 
 interface LoggerConfig {
-  level: "info" | "debug";
+  level: 'info' | 'debug';
 }
 
-export const LOGGER_CONFIG = new InjectionToken<LoggerConfig>("LOGGER_CONFIG");
+export const LOGGER_CONFIG = new InjectionToken<LoggerConfig>('LOGGER_CONFIG');
 
 const providers: Provider[] = [
   Logger,
-  { token: LOGGER_CONFIG, useValue: { level: "info" } },
+  { token: LOGGER_CONFIG, useValue: { level: 'info' } },
   { token: Logger, useClass: ConsoleLogger },
-  { token: "alias-to-config", useToken: LOGGER_CONFIG },
+  { token: 'alias-to-config', useToken: LOGGER_CONFIG },
 ];
 ```
 
@@ -61,12 +61,12 @@ A `TokenProvider` creates an alias to another token. It is **not self-sufficient
 Prefer class factory providers when the factory needs decorated parameters or better encapsulation:
 
 ```ts
-import { factoryMethod } from "@ditsmod/core";
+import { factoryMethod } from '@ditsmod/core';
 
 class ConfigFactory {
   @factoryMethod()
   createConfig() {
-    return { level: "debug" };
+    return { level: 'debug' };
   }
 }
 
@@ -81,8 +81,8 @@ Use function factory providers when plain token dependencies are enough:
 ```ts
 const provider = {
   token: LOGGER_CONFIG,
-  deps: ["log-level"],
-  useFactory: (level: LoggerConfig["level"]) => ({ level }),
+  deps: ['log-level'],
+  useFactory: (level: LoggerConfig['level']) => ({ level }),
 };
 ```
 
@@ -121,11 +121,11 @@ Use `child.pull(Token)` only for the specific case where the child lacks a provi
 Use `multi: true` only with object providers and only when all providers for the same token in the same injector are multi-providers:
 
 ```ts
-const LOCALES = new InjectionToken<string[]>("LOCALES");
+const LOCALES = new InjectionToken<string[]>('LOCALES');
 
 const providers = [
-  { token: LOCALES, useValue: "uk", multi: true },
-  { token: LOCALES, useValue: "en", multi: true },
+  { token: LOCALES, useValue: 'uk', multi: true },
+  { token: LOCALES, useValue: 'en', multi: true },
 ];
 ```
 
@@ -137,16 +137,16 @@ To make one multi-provider entry substitutable, point the multi-provider at a cl
 
 Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `getSymbol<T>()` for typed context keys.
 
-For class method parameters that read from `Context`, include `ctxProviders` unless the Ditsmod module already imports/re-exports the providers, such as through the REST `CtxModule`.
+For class method parameters that read from `Context`, include `ctxProviders` unless the Ditsmod module already imports/re-exports the providers, such as through the `@ditsmod/rest`.
 
 ```ts
-import { Context, Injector, ctx, ctxProviders, getSymbol } from "@ditsmod/core";
+import { Context, Injector, ctx, ctxProviders, getSymbol } from '@ditsmod/core';
 
 interface RequestState {
   userId: string;
 }
 
-const REQUEST_STATE = getSymbol<RequestState>("REQUEST_STATE");
+const REQUEST_STATE = getSymbol<RequestState>('REQUEST_STATE');
 
 class Handler {
   handle(@ctx(REQUEST_STATE) state: RequestState) {
@@ -156,10 +156,10 @@ class Handler {
 
 const injector = Injector.resolveAndCreate([
   ...ctxProviders,
-  { token: "user-id", useFactory: [Handler, Handler.prototype.handle] },
+  { token: 'user-id', useFactory: [Handler, Handler.prototype.handle] },
 ]);
 
-injector.get(Context).set(REQUEST_STATE, { userId: "42" });
+injector.get(Context).set(REQUEST_STATE, { userId: '42' });
 ```
 
 ## Special Token: ParentParams (Inheritance)
@@ -171,7 +171,7 @@ To handle TypeScript type checking safely without suppression comments, use one 
 ### Alternative 1 (Using `@inject` decorator)
 
 ```ts
-import { ParentParams, injectable, inject } from "@ditsmod/core/di";
+import { ParentParams, injectable, inject } from '@ditsmod/core/di';
 
 @injectable()
 class Child extends Parent {
@@ -187,7 +187,7 @@ class Child extends Parent {
 ### Alternative 2 (Using inline type assertion)
 
 ```ts
-import { ParentParams, injectable } from "@ditsmod/core/di";
+import { ParentParams, injectable } from '@ditsmod/core/di';
 
 @injectable()
 class Child extends Parent {
@@ -207,8 +207,8 @@ class Child extends Parent {
 A service or controller can access the specific injector instance that instantiated it by requesting `Injector` directly in its constructor. This pattern is primarily used for **lazy loading** dependencies at runtime:
 
 ```ts
-import { injectable, Injector } from "@ditsmod/core";
-import { FirstService } from "./first.service.js";
+import { injectable, Injector } from '@ditsmod/core';
+import { FirstService } from './first.service.js';
 
 @injectable()
 export class SecondService {

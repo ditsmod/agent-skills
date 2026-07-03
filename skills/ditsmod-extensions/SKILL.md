@@ -25,7 +25,7 @@ Extensions can be asynchronous and depend on each other.
 An extension is a class decorated with `@injectable()` that implements the `Extension` interface:
 
 ```ts
-import { injectable, Extension, Logger } from "@ditsmod/core";
+import { injectable, Extension, Logger } from '@ditsmod/core';
 
 @injectable()
 export class MyExtension implements Extension<any> {
@@ -104,9 +104,7 @@ export class FeatureModule {}
 
 - `overrideExtension`: Replaces an imported external extension with a custom one:
   ```ts
-  extensions: [
-    { extension: MyExtension, overrideExtension: ExternalExtension },
-  ];
+  extensions: [{ extension: MyExtension, overrideExtension: ExternalExtension }];
   ```
 
 ---
@@ -154,10 +152,7 @@ const stage1ExtensionMeta = await this.extensionManager.stage1(ExtensionToken);
 If your extension requires aggregated data from an extension across the entire application, you must pass `this` as the second argument:
 
 ```ts
-const stage1ExtensionMeta = await this.extensionManager.stage1(
-  ExtensionToken,
-  this,
-);
+const stage1ExtensionMeta = await this.extensionManager.stage1(ExtensionToken, this);
 ```
 
 - A separate instance of your extension is created for each module. Passing `this` guarantees that the framework waits until the target extension executes across all modules before resolving.
@@ -167,10 +162,7 @@ const stage1ExtensionMeta = await this.extensionManager.stage1(
 When retrieving application-wide data, you **MUST** check the `delay` property:
 
 ```ts
-const stage1ExtensionMeta = await this.extensionManager.stage1(
-  OtherExtension,
-  this,
-);
+const stage1ExtensionMeta = await this.extensionManager.stage1(OtherExtension, this);
 if (stage1ExtensionMeta.delay) {
   return; // Stop execution: Framework will invoke this extension again later
 }

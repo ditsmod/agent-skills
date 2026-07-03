@@ -11,6 +11,6 @@ cd my-app
 rm -rf .git
 git init
 git add .
-git commit -m "Initial commit from trpc-monorepo-starter template"
+git commit -m 'Initial commit from trpc-monorepo-starter template'
 npm i
 ```

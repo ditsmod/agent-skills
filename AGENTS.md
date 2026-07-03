@@ -44,15 +44,15 @@ The `@ditsmod/core` contains only the bare-minimum foundational functionality (D
 
   ```ts
   // 1. Built-in Node.js modules or non-Ditsmod external modules
-  import path from "node:path";
-  import axios from "axios";
+  import path from 'node:path';
+  import axios from 'axios';
 
   // 2. Ditsmod-external modules
-  import { inject } from "@ditsmod/core";
+  import { inject } from '@ditsmod/core';
 
   // 3. Subpath Imports / Alias imports / Local / Relative imports
-  import { SomeService } from "#services/some-service";
-  import { OtherService } from "./other-service";
+  import { SomeService } from '#services/some-service';
+  import { OtherService } from './other-service';
   ```
 
   Group imports only if there are more than two imports in the same file.

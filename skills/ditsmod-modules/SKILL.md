@@ -20,7 +20,7 @@ Ditsmod applications can have two types of modules:
 import { rootModule, featureModule } from '@ditsmod/core';
 
 @featureModule({
-  // The same list of properties as the root module, except "resolvedCollisionPerApp"
+  // The same list of properties as the root module, except 'resolvedCollisionPerApp'
 })
 export class SomeModule {}
 
@@ -47,14 +47,14 @@ export class AppModule {}
 import { restRootModule, restModule } from '@ditsmod/rest';
 
 @restModule({
-  // The same list of properties as the "trpcRootModule" decorator, except "resolvedCollisionPerApp"
+  // The same list of properties as the 'trpcRootModule' decorator, except 'resolvedCollisionPerApp'
 })
 export class SomeModule {}
 
 @restRootModule({
-  // Same list of properties from "rootModule", plus next:
+  // Same list of properties from 'rootModule', plus next:
   appends: [],
-  controllers: []
+  controllers: [],
 })
 export class SomeModule {}
 ```
@@ -63,13 +63,13 @@ export class SomeModule {}
 import { trpcRootModule, trpcModule } from '@ditsmod/trpc';
 
 @trpcModule({
-  // The same list of properties as the "trpcRootModule" decorator, except "resolvedCollisionPerApp"
+  // The same list of properties as the 'trpcRootModule' decorator, except 'resolvedCollisionPerApp'
 })
 export class SomeModule {}
 
 @trpcRootModule({
-  // Same list of properties from "rootModule", plus next:
-  controllers: [] // new property
+  // Same list of properties from 'rootModule', plus next:
+  controllers: [], // new property
 })
 export class SomeModule {}
 ```

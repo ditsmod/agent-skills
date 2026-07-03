@@ -11,7 +11,7 @@ cd my-app
 rm -rf .git
 git init
 git add .
-git commit -m "Initial commit from rest-starter template"
+git commit -m 'Initial commit from rest-starter template'
 npm i
 ```
 
@@ -23,6 +23,6 @@ cd my-app
 rm -rf .git
 git init
 git add .
-git commit -m "Initial commit from rest-monorepo-starter template"
+git commit -m 'Initial commit from rest-monorepo-starter template'
 npm i
 ```
