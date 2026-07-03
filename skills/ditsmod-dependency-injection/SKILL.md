@@ -1,143 +1,243 @@
 ---
 name: ditsmod-dependency-injection
-description: Practical guidance for using dependency injection in Ditsmod applications. Use when building or fixing application services, controllers, guards, interceptors, modules, provider configuration, typed InjectionToken values, provider overrides, multi-providers, request-scoped data, Context, and parameter decorators in apps built with @ditsmod/rest or other Ditsmod application packages.
+description: Guidance for implementing, refactoring, debugging, and reviewing Ditsmod dependency injection code. Use when working with @ditsmod/core DI concepts such as injector, providers, tokens, InjectionToken, class factories, injector hierarchy, providersPerApp/providersPerMod/providersPerRou/providersPerReq, injector.get(), injector.pull(), multi-providers, Context, ctxProviders, getSymbol(), ParentParams, and parameter decorators like inject, input, optional, fromSelf, and skipSelf.
 ---
 
 # Ditsmod Dependency Injection
 
-Use this skill when writing application code that consumes Ditsmod DI. Keep the focus on app ergonomics: clear provider placement, typed tokens, predictable overrides, and request-safe data flow.
+Use this skill to make DI changes in the Ditsmod codebase without guessing framework behavior.
 
-## Application Mental Model
+## Reference Sources
 
-Ditsmod app provider arrays map to injector levels. Place values by lifetime and override needs:
+This skill is the primary source of truth for Ditsmod DI logic to minimize file-reading overhead. Refer to the original documentation file ONLY if you encounter an ambiguous edge case not covered here, or if you suspect the codebase implementation has drifted from this specification:
 
-- Use `providersPerApp` for app-wide singletons and default configuration.
-- Use `providersPerMod` for module-specific services or module-level configuration overrides.
-- Use `providersPerRou` for route-level behavior.
-- Use `providersPerReq` for request-scoped services and values that must not be shared across HTTP requests.
+`website/i18n/en/docusaurus-plugin-content-docs/current/01-basic-components/01-dependency-injection.md`
 
-If a service depends on a config or helper, register that dependency in the same provider array or in an ancestor array. Do not put a dependency in a child scope.
+## Working Rules
 
-## Tokens & Providers Configuration
+- Use TypeScript examples.
+- Prefer existing Ditsmod APIs and local patterns over inventing new abstractions.
+- Treat TypeScript-only constructs (`interface`, `type`, `declare`, `enum` used only as types, or type-only imports) as unavailable at JavaScript runtime; do not use them as DI tokens.
+- **Array Token Constraint:** An array cannot be used simultaneously as a TypeScript type and as a DI token. Use `InjectionToken<T[]>` or a string/symbol token for arrays, matching it with the proper TypeScript interface in the constructor.
+- Remember that provider values are cached in the injector where their provider is registered (unless contextual data is passed via `@inject`).
+- When diagnosing hierarchy errors, use the error's `Resolution path` to identify the injector level where each token was found or missing.
 
-### Token Constraints
-- **Allowed Tokens:** Class references, string or numeric literals, symbols, or `InjectionToken<T>` instances.
-- **Strict Forbidden:** TypeScript `interface`, `type`, `enum`, or `declare` constructs **cannot** be used as tokens because they do not exist in compiled JavaScript. Do not import tokens using the `type` keyword.
+## Providers And Tokens
 
-### Dependency Forms
-- **Short Form:** `constructor(private service1: Service1)` (Allowed only when the token is exactly the class type).
-- **Long Form:** Required when injecting interfaces, arrays, or custom tokens. Use the `@inject()` decorator:
-  ```ts
-  constructor(@inject(SOME_TOKEN) private items: InterfaceOfItem[]) {}
-  ```
-
-*Recommendation:* Always use `const SOME_TOKEN = new InjectionToken<T>('SOME_TOKEN')` for long-form type safety.
-
-### Provider Types Syntax
+Recognize these provider forms:
 
 ```ts
-// 1. ValueProvider
-{ token: 'token1', useValue: 'some value' }
+import { InjectionToken, type Provider } from "@ditsmod/core";
 
-// 2. ClassProvider
-{ token: Service2, useClass: ExtendedService2 }
+class Logger {}
+class ConsoleLogger extends Logger {}
 
-// 3. FactoryProvider (Class-based - Recommended)
-// Requires @factoryMethod() on the target method
-{ token: 'token3', useFactory: [ClassWithFactory, ClassWithFactory.prototype.method1] }
+interface LoggerConfig {
+  level: "info" | "debug";
+}
 
-// 4. FactoryProvider (Function-based)
-// Parameters must be explicitly provided in 'deps'
-{ token: 'token4', deps: [Dependency1, Dependency2], useFactory: myFunction }
+export const LOGGER_CONFIG = new InjectionToken<LoggerConfig>("LOGGER_CONFIG");
 
-// 5. TokenProvider (Alias creation)
-{ token: ServiceAlias, useToken: RealService }
+const providers: Provider[] = [
+  Logger,
+  { token: LOGGER_CONFIG, useValue: { level: "info" } },
+  { token: Logger, useClass: ConsoleLogger },
+  { token: "alias-to-config", useToken: LOGGER_CONFIG },
+];
 ```
 
-> **Duplicate Providers Rule:** If multiple regular providers share the same token, the **last** provider in the array overrides all previous ones.
+Use the shorthand `SomeService` only when it is equivalent to `{ token: SomeService, useClass: SomeService }`.
 
-## Injector Hierarchy & Encapsulation
+Duplicate regular providers with the same token resolve to the last provider in the same injector. Multi-providers are the exception.
 
-Ditsmod operates on a hierarchical injector structure: `App` (Application) -> `Mod` (Module) -> `Rou` (Route) -> `Req` (Request).
+### TokenProvider Resolution Rule
 
-### The Hierarchy Golden Rule
+A `TokenProvider` creates an alias to another token. It is **not self-sufficient**. The dependency chain formed by `useToken` properties must ultimately resolve to a non-TokenProvider (`ValueProvider`, `ClassProvider`, `FactoryProvider`, or `TypeProvider`). If the target token lacks a concrete provider in the hierarchy, DI throws a `No provider for [TargetToken]!` error.
 
-> **"If a provider depends on another provider, the dependency must not be placed at a lower level of the hierarchy (in child injectors)."**
+---
 
-- **Resolution Path:** Child injectors can look up the hierarchy chain to resolve dependencies in parent injectors, but parent injectors **never** query child injectors.
-- **State & Caching:** Instances are cached within the specific injector level that registered the provider. If a child injector resolves a token from a parent, the instance lives and caches in the parent.
+## Factory Providers
 
-### Debugging & Naming Injectors
-
-Always explicitly name injectors when creating them manually to make error `Resolution paths` scannable:
+Prefer class factory providers when the factory needs decorated parameters or better encapsulation:
 
 ```ts
-const child = parent.resolveAndCreateChild([Provider], 'childInjectorName');
+import { factoryMethod } from "@ditsmod/core";
+
+class ConfigFactory {
+  @factoryMethod()
+  createConfig() {
+    return { level: "debug" };
+  }
+}
+
+const provider = {
+  token: LOGGER_CONFIG,
+  useFactory: [ConfigFactory, ConfigFactory.prototype.createConfig],
+};
 ```
 
-### Advanced Hierarchy Methods
+Use function factory providers when plain token dependencies are enough:
 
-- `injector.pull(Token)`: Used in child injectors to force pulling a provider from the parent registry and instantiating it contextually within the child level (resolving child-level dependencies) *without* caching it globally.
-- `constructor(private injector: Injector)`: Inject the current injector level directly into a service for patterns like lazy-loading dependencies.
+```ts
+const provider = {
+  token: LOGGER_CONFIG,
+  deps: ["log-level"],
+  useFactory: (level: LoggerConfig["level"]) => ({ level }),
+};
+```
+
+For function factories, `deps` contains dependency tokens, not providers. Parameter decorators such as `optional`, `fromSelf`, or `skipSelf` are not passed in `deps`; use a class factory provider if those decorators are needed.
+
+## Injector Hierarchy
+
+Ditsmod application injectors are conceptually layered as:
+
+```ts
+providersPerApp -> providersPerMod -> providersPerRou -> providersPerReq
+
+```
+
+Apply this rule when placing providers:
+If provider `A` depends on provider `B`, `B` must be registered in the same injector as `A` or in an ancestor injector. Do not put `B` only in a child injector.
+
+Important consequences:
+
+- Child injectors can ask parent injectors for missing tokens.
+- Parent injectors never ask child injectors for tokens.
+- If a child delegates `get(Service)` to a parent, the parent creates `Service` using dependencies visible from the parent level, not from the child level.
+- Register a service in the child injector when it must use child-level overrides.
+- Name injectors (e.g., `Injector.resolveAndCreate(providers, 'injectorName')`) in low-level tests or examples when hierarchy diagnostics matter.
+
+## `get()` Versus `pull()`
+
+Use `injector.get(Token)` for normal resolution and caching.
+
+Use `child.pull(Token)` only for the specific case where the child lacks a provider that exists in an ancestor, but the pulled provider should be created in the child context so it can use child-level dependencies.
+
+- **Crucial Caching Behavior:** When a provider is pulled from an ancestor, `pull()` returns a **new instance each time** instead of caching it. If the provider already exists in the current child injector, `pull()` acts identically to `get()` and utilizes the cache.
 
 ## Multi-Providers
 
-- Used to pass multiple values under a single token, returning an array of values.
-- **Constraint:** You **cannot** mix regular providers and multi-providers for the same token within the same injector.
-- **Override Pattern:** To substitute a multi-provider from an external module, use a `TokenProvider` pointing to a custom `ClassProvider`:
+Use `multi: true` only with object providers and only when all providers for the same token in the same injector are multi-providers:
 
 ```ts
-{ token: HTTP_INTERCEPTORS, useToken: DefaultInterceptor, multi: true },
-DefaultInterceptor,
-{ token: DefaultInterceptor, useClass: MyInterceptor }
+const LOCALES = new InjectionToken<string[]>("LOCALES");
+
+const providers = [
+  { token: LOCALES, useValue: "uk", multi: true },
+  { token: LOCALES, useValue: "en", multi: true },
+];
 ```
 
-## Request Data And Context
+Do not mix regular and multi-providers for the same token in one injector. If a child injector declares multi-providers for a token, it returns its own multi-provider array for that token rather than merging parent values.
 
-Use `Context` for values produced after injector creation, especially data produced by interceptors or guards and consumed by controllers or services later in the same request. Use as a mutable data intermediary across the immutable injector hierarchy.
+To make one multi-provider entry substitutable, point the multi-provider at a class with `useToken`, then override that class with a normal class provider.
 
-Use `getSymbol<T>()` for typed context keys:
+## Context
+
+Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `getSymbol<T>()` for typed context keys.
+
+For class method parameters that read from `Context`, include `ctxProviders` unless the Ditsmod module already imports/re-exports the providers, such as through the REST `CtxModule`.
 
 ```ts
-import { Context, getSymbol } from '@ditsmod/core';
+import { Context, Injector, ctx, ctxProviders, getSymbol } from "@ditsmod/core";
 
-export interface CurrentUser {
-  id: string;
-  roles: string[];
+interface RequestState {
+  userId: string;
 }
 
-export const CURRENT_USER = getSymbol<CurrentUser>('CURRENT_USER');
+const REQUEST_STATE = getSymbol<RequestState>("REQUEST_STATE");
 
-export class CurrentUserWriter {
-  constructor(private ctx: Context) {}
+class Handler {
+  handle(@ctx(REQUEST_STATE) state: RequestState) {
+    return state.userId;
+  }
+}
 
-  setUser(user: CurrentUser) {
-    this.ctx.set(CURRENT_USER, user);
+const injector = Injector.resolveAndCreate([
+  ...ctxProviders,
+  { token: "user-id", useFactory: [Handler, Handler.prototype.handle] },
+]);
+
+injector.get(Context).set(REQUEST_STATE, { userId: "42" });
+```
+
+## Special Token: ParentParams (Inheritance)
+
+When an `@injectable()` class extends a parent class, Ditsmod provides the `ParentParams` token to handle parent constructor dependencies cleanly without manual parameter mapping. DI automatically injects an array containing the parent's constructor arguments into this token.
+
+To handle TypeScript type checking safely without suppression comments, use one of these two recommended alternatives in the child class constructor:
+
+### Alternative 1 (Using `@inject` decorator)
+
+```ts
+import { ParentParams, injectable, inject } from "@ditsmod/core/di";
+
+@injectable()
+class Child extends Parent {
+  constructor(
+    @inject(ParentParams) parentParams: ConstructorParameters<typeof Parent>,
+    public childParam1: ChildParam1,
+  ) {
+    super(...parentParams);
   }
 }
 ```
 
-### Method Parameter Injection
-
-To directly inject context values into class or controller methods, use the `@ctx()` decorator:
+### Alternative 2 (Using inline type assertion)
 
 ```ts
-method1(@ctx('key1') param1: any) { ... }
+import { ParentParams, injectable } from "@ditsmod/core/di";
+
+@injectable()
+class Child extends Parent {
+  constructor(
+    parentParams: ParentParams,
+    public childParam1: ChildParam1,
+  ) {
+    super(...(parentParams as ConstructorParameters<typeof Parent>));
+  }
+}
 ```
 
-## Parameter Decorators Reference
+---
 
-- `@inject(token)`: for non-class tokens and implementation aliases.
-- `@input`: Used in constructor parameters to capture contextual data passed down from a parent `@inject(Dependency, 'contextual-data')` call.
-- `@optional()`: Tells DI not to throw an error if no provider exists for this token (injects `undefined`).
-- `@fromSelf()`: Restricts DI lookup strictly to the current injector level; skips parent lookup.
-- `@skipSelf()`: Bypasses the current injector level immediately and begins the resolution chain from the parent injector.
+## Current Injector & Lazy Loading
 
-## App Debugging Checklist
+A service or controller can access the specific injector instance that instantiated it by requesting `Injector` directly in its constructor. This pattern is primarily used for **lazy loading** dependencies at runtime:
 
-1. Confirm the failing token exists at runtime; replace interfaces/types with instance of `InjectionToken<T>`.
-2. Confirm the consumer service/controller is registered at a scope that can see all its dependencies.
-3. If an override is ignored, check whether the consuming service is created in a child injector.
-4. If request data leaks across requests, move mutable data out of app/module singletons and into request scope or `Context`.
-5. If a multi-provider result is incomplete, check whether a child scope replaced the parent multi-provider array.
-6. If a function factory fails, verify every item in `deps` has a corresponding token.
+```ts
+import { injectable, Injector } from "@ditsmod/core";
+import { FirstService } from "./first.service.js";
+
+@injectable()
+export class SecondService {
+  constructor(private injector: Injector) {}
+
+  someMethod() {
+    // FirstService is requested dynamically only when someMethod is called
+    const firstService = this.injector.get(FirstService);
+  }
+}
+```
+
+## Parameter Decorators
+
+- Use `@inject(token)` when the runtime token differs from the TypeScript parameter type.
+- **Contextual Input Decorator (`@inject` + `@input`):** You can pass contextual data during dependency instantiation by passing a second argument to `@inject(Dependency, 'input-data')`. The target dependency must accept it via the `@input` decorator (shorthand for `@inject(input)`).
+- **Critical Nuance:** When a second argument is passed to `@inject()`, the injector **does not create a cache** for the specified dependency.
+
+- Use `@optional()` when absence of a provider is valid. TypeScript optional syntax (`?`) alone is ignored by the JavaScript runtime DI mechanism.
+- Use `@fromSelf()` to force lookup only in the injector creating the current value.
+- Use `@skipSelf()` to start lookup from the parent injector.
+
+## Debugging Checklist
+
+1. Identify the requested token and the injector where the request starts.
+2. Find the provider level for that token.
+3. For every constructor or factory dependency, verify that its provider is at the same level or an ancestor of the provider that needs it.
+4. Check whether a child-level override is ineffective because the requested service is actually created in a parent injector.
+5. Check for invalid runtime tokens caused by interfaces, type aliases, enums used only as types, or `import type`.
+6. Ensure that array types are not being passed directly as runtime tokens; check for `InjectionToken` usage.
+7. Verify that any `TokenProvider` (using `useToken`) eventually terminates in a non-token provider mapping.
+8. Check for accidental mixing of regular and multi-providers.
