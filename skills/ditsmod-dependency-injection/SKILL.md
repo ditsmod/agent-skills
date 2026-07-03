@@ -1,26 +1,19 @@
 ---
 name: ditsmod-dependency-injection
-description: Guidance for implementing, refactoring, debugging, and reviewing Ditsmod dependency injection code. Use when working with @ditsmod/core DI concepts such as injector, providers, tokens, InjectionToken, class factories, injector hierarchy, providersPerApp/providersPerMod/providersPerRou/providersPerReq, injector.get(), injector.pull(), multi-providers, Context, ctxProviders, getSymbol(), ParentParams, and parameter decorators like inject, input, optional, fromSelf, and skipSelf.
+description: "Ditsmod DI: InjectionToken, injector hierarchy (providersPerApp/providersPerMod/providersPerRou/providersPerReq), provider types (TypeProvider/ValueProvider/ClassProvider/FactoryProvider/TokenProvider), multi-providers, Context, getSymbol, ParentParams, parameter decorators (inject/input/optional/fromSelf/skipSelf), pull() vs get(), debugging 'No provider for X' errors, Resolution path interpretation, @injectable decorator."
 ---
 
 # Ditsmod Dependency Injection
 
 Use this skill to make DI changes in the Ditsmod codebase without guessing framework behavior.
 
-## Reference Sources
-
-This skill is the primary source of truth for Ditsmod DI logic to minimize file-reading overhead. Refer to the original documentation file ONLY if you encounter an ambiguous edge case not covered here, or if you suspect the codebase implementation has drifted from this specification:
-
-`website/i18n/en/docusaurus-plugin-content-docs/current/01-basic-components/01-dependency-injection.md`
-
 ## Working Rules
 
-- Use TypeScript examples.
-- Prefer existing Ditsmod APIs and local patterns over inventing new abstractions.
+- **`@injectable()` is mandatory** for every class that has constructor parameters used as DI dependencies. Without it, TypeScript does not emit parameter metadata and DI silently fails with a `No provider for [Token]!` error even when the provider is correctly registered.
 - Treat TypeScript-only constructs (`interface`, `type`, `declare`, `enum` used only as types, or type-only imports) as unavailable at JavaScript runtime; do not use them as DI tokens.
-- **Array Token Constraint:** An array cannot be used simultaneously as a TypeScript type and as a DI token. Use `InjectionToken<T[]>` or a string/symbol token for arrays, matching it with the proper TypeScript interface in the constructor.
+- **Array Token Constraint:** An array cannot be used simultaneously as a TypeScript type and as a DI token. Use an instance of `InjectionToken<T[]>` or a string/symbol token for arrays, matching it with the proper TypeScript interface in the constructor.
 - Remember that provider values are cached in the injector where their provider is registered (unless contextual data is passed via `@inject`).
-- When diagnosing hierarchy errors, use the error's `Resolution path` to identify the injector level where each token was found or missing.
+- When diagnosing hierarchy errors, use the error's `Resolution path` to identify the injector level where each token was found or missing. See [references/REFERENCE.md](references/REFERENCE.md) for Resolution path interpretation guide.
 
 ## Providers And Tokens
 
@@ -39,14 +32,14 @@ interface LoggerConfig {
 export const LOGGER_CONFIG = new InjectionToken<LoggerConfig>('LOGGER_CONFIG');
 
 const providers: Provider[] = [
-  Logger,
+  Logger,                                              // TypeProvider (shorthand)
   { token: LOGGER_CONFIG, useValue: { level: 'info' } },
   { token: Logger, useClass: ConsoleLogger },
   { token: 'alias-to-config', useToken: LOGGER_CONFIG },
 ];
 ```
 
-Use the shorthand `SomeService` only when it is equivalent to `{ token: SomeService, useClass: SomeService }`.
+The shorthand `SomeService` is exactly equivalent to `{ token: SomeService, useClass: SomeService }`.
 
 Duplicate regular providers with the same token resolve to the last provider in the same injector. Multi-providers are the exception.
 
@@ -90,12 +83,16 @@ For function factories, `deps` contains dependency tokens, not providers. Parame
 
 ## Injector Hierarchy
 
-Ditsmod application injectors are conceptually layered as:
-
-```ts
-providersPerApp -> providersPerMod -> providersPerRou -> providersPerReq
+Ditsmod application injectors are organized as a parent-child hierarchy (top = root/ancestor, bottom = deepest child):
 
 ```
+providersPerApp   ← root (ancestor)
+  └─ providersPerMod
+       └─ providersPerRou
+            └─ providersPerReq   ← deepest child
+```
+
+Child injectors look **up** to parents for missing tokens; parent injectors never look down to children.
 
 Apply this rule when placing providers:
 If provider `A` depends on provider `B`, `B` must be registered in the same injector as `A` or in an ancestor injector. Do not put `B` only in a child injector.
@@ -114,7 +111,8 @@ Use `injector.get(Token)` for normal resolution and caching.
 
 Use `child.pull(Token)` only for the specific case where the child lacks a provider that exists in an ancestor, but the pulled provider should be created in the child context so it can use child-level dependencies.
 
-- **Crucial Caching Behavior:** When a provider is pulled from an ancestor, `pull()` returns a **new instance each time** instead of caching it. If the provider already exists in the current child injector, `pull()` acts identically to `get()` and utilizes the cache.
+- **Pulled from ancestor:** `pull()` temporarily brings the ancestor provider into the child context, creates a **new instance each time** (no caching), using child-level dependencies.
+- **Exists in child:** If the provider already exists in the current child injector, `pull()` acts identically to `get()` — creates and caches the instance on first call, returns cached value on subsequent calls.
 
 ## Multi-Providers
 
@@ -137,7 +135,7 @@ To make one multi-provider entry substitutable, point the multi-provider at a cl
 
 Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `getSymbol<T>()` for typed context keys.
 
-For class method parameters that read from `Context`, include `ctxProviders` unless the Ditsmod module already imports/re-exports the providers, such as through the `@ditsmod/rest`.
+Always include `...ctxProviders` in `Injector.resolveAndCreate()` when using `@ctx()` in class method parameters directly. In modular Ditsmod applications that import `CtxModule` (re-exported by `@ditsmod/rest`), these providers are already available — do not duplicate them.
 
 ```ts
 import { Context, Injector, ctx, ctxProviders, getSymbol } from '@ditsmod/core';
@@ -160,16 +158,34 @@ const injector = Injector.resolveAndCreate([
 ]);
 
 injector.get(Context).set(REQUEST_STATE, { userId: '42' });
+const userId = injector.get('user-id'); // '42'
 ```
+
+`ctx.get(key)` retrieves a value from the current context instance. `ctx.getInScope(key, injector)` traverses up the injector hierarchy to find the value, useful when Context instances exist at multiple levels.
 
 ## Special Token: ParentParams (Inheritance)
 
-When an `@injectable()` class extends a parent class, Ditsmod provides the `ParentParams` token to handle parent constructor dependencies cleanly without manual parameter mapping. DI automatically injects an array containing the parent's constructor arguments into this token.
+When an `@injectable()` class extends a parent class, DI automatically injects an array of the parent's constructor arguments into the `ParentParams` token.
 
-To handle TypeScript type checking safely without suppression comments, use one of these two recommended alternatives in the child class constructor:
+Three approaches (choose one):
 
-### Alternative 1 (Using `@inject` decorator)
+**Option A — `@ts-expect-error` (simplest):**
+```ts
+import { ParentParams, injectable } from '@ditsmod/core/di';
 
+@injectable()
+class Child extends Parent {
+  constructor(
+    parentParams: ParentParams,
+    public childParam1: ChildParam1,
+  ) {
+    // @ts-expect-error auto-injected
+    super(...parentParams);
+  }
+}
+```
+
+**Option B — `@inject` decorator (type-safe, no suppression):**
 ```ts
 import { ParentParams, injectable, inject } from '@ditsmod/core/di';
 
@@ -184,11 +200,8 @@ class Child extends Parent {
 }
 ```
 
-### Alternative 2 (Using inline type assertion)
-
+**Option C — inline type assertion (type-safe, no suppression):**
 ```ts
-import { ParentParams, injectable } from '@ditsmod/core/di';
-
 @injectable()
 class Child extends Parent {
   constructor(
@@ -234,10 +247,12 @@ export class SecondService {
 ## Debugging Checklist
 
 1. Identify the requested token and the injector where the request starts.
-2. Find the provider level for that token.
-3. For every constructor or factory dependency, verify that its provider is at the same level or an ancestor of the provider that needs it.
-4. Check whether a child-level override is ineffective because the requested service is actually created in a parent injector.
-5. Check for invalid runtime tokens caused by interfaces, type aliases, enums used only as types, or `import type`.
-6. Ensure that array types are not being passed directly as runtime tokens; check for `InjectionToken` usage.
-7. Verify that any `TokenProvider` (using `useToken`) eventually terminates in a non-token provider mapping.
-8. Check for accidental mixing of regular and multi-providers.
+2. Read the `Resolution path` in the error message (format: `[Token in injectorA >> injectorB] -> [Dep in injectorB]`). The `>>` chain shows which injectors were traversed to find the token; the `->` arrow shows the next dependency that failed. See [references/REFERENCE.md](references/REFERENCE.md) for detailed examples.
+3. Find the provider level for that token.
+4. For every constructor or factory dependency, verify that its provider is at the same level or an ancestor of the provider that needs it.
+5. Check whether a child-level override is ineffective because the requested service is actually created in a parent injector.
+6. Check for invalid runtime tokens caused by interfaces, type aliases, enums used only as types, or `import type`.
+7. Check for missing `@injectable()` on a class that has constructor dependencies.
+8. Ensure that array types are not being passed directly as runtime tokens; check for `InjectionToken` usage.
+9. Verify that any `TokenProvider` (using `useToken`) eventually terminates in a non-token provider mapping.
+10. Check for accidental mixing of regular and multi-providers.
