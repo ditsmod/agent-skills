@@ -1,0 +1,147 @@
+# Ditsmod Modules — Technical Reference
+
+## Full Module Metadata Shapes
+
+`@ditsmod/core` defines metadata via the `ModuleRawMetadata` class (passed to `rootModule` and `featureModule`):
+
+```ts
+// Source: @ditsmod/core — decorators/module-raw-metadata.ts
+class ModuleRawMetadata<T extends AnyObj = AnyObj> {
+  // ModRefId = ModuleType | ModuleWithParams
+  imports?: (ModRefId | ForwardRefFn<ModuleType>)[];
+  exports?: any[];
+  providersPerApp?: Providers | (Provider | ForwardRefFn<Provider>)[];
+  providersPerMod?: Providers | (Provider | ForwardRefFn<Provider>)[];
+  providersPerRou?: Providers | (Provider | ForwardRefFn<Provider>)[];
+  providersPerReq?: Providers | (Provider | ForwardRefFn<Provider>)[];
+  extensions?: (ExtensionConfig | ExtensionClass)[];
+  extensionsMeta?: T; // generic — any object shape, not Record<string, unknown>
+  resolvedCollisionPerMod?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+  resolvedCollisionPerRou?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+  resolvedCollisionPerReq?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+}
+```
+
+`rootModule` adds one more field:
+
+```ts
+resolvedCollisionPerApp?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+```
+
+`@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `ModuleRawMetadata`.
+
+## `ModuleWithParams` Shape
+
+`ModuleWithParams` is composed of three interfaces in `@ditsmod/core`:
+
+```ts
+// Source: @ditsmod/core — decorators/module-raw-metadata.ts
+interface BaseModuleWithParams<M extends AnyObj = AnyObj> {
+  id?: string; // optional module identity string for disambiguation
+  module: ModuleType<M> | ForwardRefFn<ModuleType<M>>;
+}
+
+interface FeatureModuleParams<E extends AnyObj = AnyObj> extends Partial<ProvidersOnly> {
+  // ProvidersOnly provides: providersPerApp, providersPerMod, providersPerRou, providersPerReq
+  exports?: any[];
+  extensionsMeta?: E; // generic, not Record<string, unknown>
+}
+
+// The final exported type used in imports[]:
+interface ModuleWithParams<M extends AnyObj = AnyObj> extends BaseModuleWithParams<M>, FeatureModuleParams {
+  initParams?: InitParamsMap; // present when used with init decorators
+}
+```
+
+Note: there is **no** index signature (`[key: string]: unknown`) in `ModuleWithParams`. Extra properties are not generically allowed.
+
+`path` is **not** a field of `ModuleWithParams` from `@ditsmod/core`. When using `@ditsmod/rest`, the object passed to `imports[]` is typed as `RestModuleParams`, which extends `FeatureModuleParams` and adds route-specific fields:
+
+```ts
+// Source: @ditsmod/rest — init/rest-init-raw-meta.ts
+// RestModuleParams = RestModuleParams1 | RestModuleParams2
+interface RestModuleParams1 extends BaseRestModuleParams {
+  path?: string;
+  absolutePath?: never; // mutually exclusive with absolutePath
+}
+interface RestModuleParams2 extends BaseRestModuleParams {
+  absolutePath?: string;
+  path?: never; // mutually exclusive with path
+}
+interface BaseRestModuleParams extends FeatureModuleParams {
+  exports?: any[];
+  guards?: GuardItem[];
+}
+```
+
+Use `path` for a relative route prefix, `absolutePath` for an absolute one. They cannot be set simultaneously.
+
+When a module is imported with `ModuleWithParams`, the framework treats the object identity as the module's key. This is why re-exporting must use the **same object reference**.
+
+## `getTokens()` Behavior
+
+`getTokens(providers: Provider[]): Token[]` extracts the token from each provider in the array:
+
+- `Class` → the class itself is the token
+- `{ token, useValue | useClass | useFactory | useToken }` → extracts `token`
+- Multi-providers (`{ token, useValue, multi: true }`) → token is included once
+
+Use it whenever a provider array is constructed with object-form providers and you want to export all of them without manually listing tokens.
+
+## Import Order vs. Collision Resolution
+
+Import order does **not** determine which provider wins in a collision. Ditsmod detects any ambiguity between two imported modules that export different providers for the same token and throws a collision error, regardless of import order. Always resolve collisions explicitly via `resolvedCollisionPer*`.
+
+## Route Prefix Composition
+
+Path prefixes compose from outer to inner:
+
+- Root module mounts a feature module at `api/v1` via `imports: [{ path: 'api/v1', module: ApiModule }]`
+- `ApiModule` mounts `UsersModule` at `users` via `imports: [{ path: 'users', module: UsersModule }]`
+- Controller route `GET :id` inside `UsersModule` → final URL: `GET /api/v1/users/:id`
+
+The same composition applies for `appends`.
+
+## Provider Scope Decision Guide
+
+Use this decision tree when choosing provider scope:
+
+1. Must be a single instance for the entire app lifetime? → `providersPerApp`
+2. Must be a single instance per module (e.g., module-level config)? → `providersPerMod`
+3. Must be a single instance per matched route (e.g., route-level state)? → `providersPerRou`
+4. Must be fresh per HTTP request (e.g., request context, user session)? → `providersPerReq`
+
+## `extensionsMeta` Usage Pattern
+
+```ts
+import { MY_EXTENSION } from './my.extension.js';
+
+export class DataModule {
+  static withConfig(config: DataConfig): ModuleWithParams<DataModule> {
+    return {
+      module: this,
+      extensionsMeta: {
+        [MY_EXTENSION]: config, // one key per extension
+      },
+    };
+  }
+}
+```
+
+Extensions receive this data when they process the module's metadata. Keep each extension's data isolated under its own symbol or string key to prevent conflicts between extensions.
+
+## Common Collision Error Message Pattern
+
+```
+Error: Collision was found in DataModule (providersPerMod) for token LogService.
+This collision can be resolved in one of the following modules: AppModule...
+```
+
+- Identify the scope: `providersPerMod` → use `resolvedCollisionPerMod`
+- Identify the token: `LogService`
+- Choose which module's provider to prefer: `[LogService, PreferredModule]`
+- Add to the consuming module:
+
+```ts
+resolvedCollisionPerMod: [[LogService, PreferredModule]],
+```

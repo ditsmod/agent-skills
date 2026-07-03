@@ -1,62 +1,60 @@
 ---
 name: ditsmod-modules
-description: Practical guidance for creating, importing, appending, exporting, re-exporting, parameterizing, and troubleshooting Ditsmod modules in applications. Use when a Ditsmod app developer works with root modules, feature modules, restRootModule, restModule, imports, appends, exports, ModuleWithParams, route prefixes, provider visibility, getTokens, and provider collision resolution.
+description: 'Ditsmod modules: rootModule, featureModule, restRootModule, restModule, trpcRootModule, trpcModule decorators; imports vs appends vs exports; provider visibility (providersPerApp/Mod/Rou/Req); getTokens(); ModuleWithParams; re-exporting; resolvedCollisionPer* for token collision resolution. Use when assembling modules, wiring imports/exports, setting route prefixes, configuring provider scope, or fixing provider collision errors.'
 ---
 
 # Ditsmod Modules
 
-Use this skill for application code that assembles Ditsmod modules. Keep the focus on clean module boundaries, explicit imports/exports, and provider visibility.
-
 ## Choose The Module Type
 
-Ditsmod applications can have two types of modules:
+Ditsmod applications have two module roles:
 
-- Root module. Other modules are imports to the root module; it is the only one for the entire application, and its class is recommended to be named `AppModule`.
-- Feature module. Use feature modules for cohesive application features or reusable packages.
+- **Root module** — exactly one per application; entry point for DI composition. Recommended class name: `AppModule`.
+- **Feature module** — encapsulates a cohesive set of providers, controllers, or extensions. Reusable and importable.
 
-`@ditsmod/core` provides `rootModule` and `featureModule` decorators, both of which accept a basic set of properties in their metadata configuration:
+`@ditsmod/core` provides `rootModule` and `featureModule` decorators. Both accept the same base metadata properties:
 
 ```ts
 import { rootModule, featureModule } from '@ditsmod/core';
 
 @featureModule({
-  // The same list of properties as the root module, except 'resolvedCollisionPerApp'
+  imports: [], // Modules whose exports this module consumes
+  providersPerApp: [], // Providers registered at application level
+  providersPerMod: [], // Providers registered at module level
+  providersPerRou: [], // Providers registered at route level
+  providersPerReq: [], // Providers registered per HTTP request
+  exports: [], // Tokens or modules exposed to importers
+  extensions: [], // Extensions to run
+  extensionsMeta: {}, // Keyed data consumed by extensions
+  resolvedCollisionPerMod: [], // Collision resolution at module level
+  resolvedCollisionPerRou: [], // Collision resolution at route level
+  resolvedCollisionPerReq: [], // Collision resolution at request level
 })
 export class SomeModule {}
 
 @rootModule({
-  imports: [], // Imported modules
-  providersPerApp: [], // Providers at the application level
-  providersPerMod: [], //         ...at the module level
-  providersPerRou: [], //         ...at the route level
-  providersPerReq: [], //         ...at the HTTP request level
-  exports: [], // Exported modules and providers from the current module
-  extensions: [], // Extensions
-  extensionsMeta: {}, // Data for extensions
-  resolvedCollisionPerApp: [], // Resolution of imported class collisions at the application level
-  resolvedCollisionPerMod: [], //                                   ...at the module level
-  resolvedCollisionPerRou: [], //                                   ...at the route level
-  resolvedCollisionPerReq: [], //                                   ...at the HTTP request level
+  // All featureModule properties, plus:
+  resolvedCollisionPerApp: [], // Collision resolution at app level
 })
 export class AppModule {}
 ```
 
-`@ditsmod/rest` and `@ditsmod/trpc` also have root and feature modules, but their metadata accepts an extended type:
+`@ditsmod/rest` and `@ditsmod/trpc` provide their own decorators with extended metadata:
 
 ```ts
 import { restRootModule, restModule } from '@ditsmod/rest';
 
 @restModule({
-  // The same list of properties as the 'trpcRootModule' decorator, except 'resolvedCollisionPerApp'
+  // The same list of properties as the 'restRootModule' decorator, except 'resolvedCollisionPerApp'
 })
 export class SomeModule {}
 
 @restRootModule({
-  // Same list of properties from 'rootModule', plus next:
-  appends: [],
-  controllers: [],
+  // All rootModule properties, plus:
+  appends: [], // Attach a module's controllers without consuming its exports
+  controllers: [], // Register controllers directly on the root module
 })
-export class SomeModule {}
+export class AppModule {}
 ```
 
 ```ts
@@ -68,15 +66,17 @@ import { trpcRootModule, trpcModule } from '@ditsmod/trpc';
 export class SomeModule {}
 
 @trpcRootModule({
-  // Same list of properties from 'rootModule', plus next:
-  controllers: [], // new property
+  // All rootModule properties, plus:
+  controllers: [], // Register tRPC controllers directly on the root module
 })
-export class SomeModule {}
+export class AppModule {}
 ```
+
+> **Do not mix** `@ditsmod/rest` and `@ditsmod/trpc` entities in the same application. Check a package's `peerDependencies` to confirm architectural style compatibility.
 
 ## Import, Append, Export
 
-Use `imports` when the current module needs exported providers or extensions from another module:
+**`imports`** — use when the current module needs exported providers or extensions from another module:
 
 ```ts
 @restModule({
@@ -85,29 +85,33 @@ Use `imports` when the current module needs exported providers or extensions fro
 export class UsersModule {}
 ```
 
-Use `imports` with `{ module, path }` when controllers from the imported module must also be mounted. The presence of `path` means controllers are considered, even when `path` is an empty string:
+**`imports` with `{ path, module }`** (`@ditsmod/rest`) — additionally mounts the imported module's controllers under a route prefix. The `path` property activates controller mounting even when set to an empty string. Use `absolutePath` instead of `path` when the prefix must be absolute (the two are mutually exclusive). Add `guards` to protect all routes in the imported module:
 
 ```ts
 @restModule({
-  imports: [{ path: 'users', module: UsersModule }],
+  imports: [
+    { path: 'users', module: UsersModule },
+    { path: 'admin', module: AdminModule, guards: [AuthGuard] },
+    { absolutePath: 'health', module: HealthModule }, // absolute path, no prefix stacking
+  ],
 })
 export class AppFeatureModule {}
 ```
 
-Use `appends` when you only need to attach another module's controllers under the current module's path prefix and do not need its exported providers or extensions:
+**`appends`** — use when you only need to attach another module's controllers under the current module's route prefix without consuming its exported providers or extensions. Only append modules that have controllers:
 
 ```ts
-@restModule({
+@restRootModule({
   appends: [{ module: AdminModule, path: 'admin' }],
 })
-export class ApiModule {}
+export class AppModule {}
 ```
-
-Only append modules that have controllers.
 
 ## Export Providers By Token
 
-Export provider tokens, not provider objects. Providers from `providersPerApp` are app-level and do not need exporting for app-wide visibility.
+Export provider tokens, not provider objects. `providersPerApp` providers are globally available and do not need exporting.
+
+Use `getTokens()` when the provider array contains object-form providers (e.g., `{ token, useClass, ... }`), because their tokens cannot be statically extracted otherwise:
 
 ```ts
 import { restModule, getTokens } from '@ditsmod/rest';
@@ -120,13 +124,11 @@ import { authProviders } from './auth.providers.js';
 export class AuthModule {}
 ```
 
-Export only what consumer modules use directly. If an exported provider depends on an internal service, the internal service does not need to be exported unless consumers inject it directly.
-
-Do not export controllers; exports apply to providers and modules.
+Export only what consumer modules inject directly. Internal implementation services do not need to be exported unless consumers inject them. Do not export controllers — exports apply only to providers and modules.
 
 ## Re-Export Modules
 
-Import and export a module when the current module should pass through another module's exports:
+To pass through another module's exports to importers of the current module, both import and export it:
 
 ```ts
 @restModule({
@@ -136,36 +138,31 @@ Import and export a module when the current module should pass through another m
 export class SecurityModule {}
 ```
 
-If importing a `ModuleWithParams` object, export the same object instance:
+When re-exporting a `ModuleWithParams` object, export the **same object reference** that was imported:
 
 ```ts
 const usersWithPath = { module: UsersModule, path: 'users' };
 
 @restModule({
   imports: [usersWithPath],
-  exports: [usersWithPath],
+  exports: [usersWithPath], // must be the identical object, not a new literal
 })
 export class ApiModule {}
 ```
 
 ## Module Parameters
 
-Use a static method when a module is commonly imported with parameters:
+Use a static factory method when a module is commonly imported with configuration:
 
 ```ts
 import { type ModuleWithParams } from '@ditsmod/core';
 
 export class UsersModule {
   static withPrefix(path: string): ModuleWithParams<UsersModule> {
-    return {
-      module: this,
-      path,
-    };
+    return { module: this, path };
   }
 }
 ```
-
-Then import it clearly:
 
 ```ts
 @restModule({
@@ -174,15 +171,24 @@ Then import it clearly:
 export class ApiModule {}
 ```
 
-Use `extensionsMeta` in `ModuleWithParams` for extension-specific data. Keep one extension's data under one key.
+Pass extension-specific data via `extensionsMeta` inside `ModuleWithParams`. Keep each extension's data under a single dedicated key.
 
-## Provider Lifetime Across Modules
+## Provider Visibility And Lifetime
 
-Imported provider classes are imported, not their instances. If a provider is declared at module/route/request level in two modules, instances are not shared between those modules. Use `providersPerApp` when a singleton must be shared application-wide.
+Provider registration level determines scope and sharing:
+
+| Level   | Array             | Scope                  | Shared across modules?            |
+| ------- | ----------------- | ---------------------- | --------------------------------- |
+| App     | `providersPerApp` | Entire app             | Yes — singleton, no export needed |
+| Module  | `providersPerMod` | Module + its importers | Only if exported                  |
+| Route   | `providersPerRou` | Single route subtree   | Only if exported                  |
+| Request | `providersPerReq` | Single HTTP request    | Only if exported                  |
+
+Imported provider classes are registered — not their instances. If the same provider class is declared at mod/rou/req level in two separate modules, each module gets its own instance. Use `providersPerApp` when a true singleton must be shared across all modules.
 
 ## Collision Handling
 
-When two imported modules export non-identical providers with the same token, resolve the collision in the consuming application module:
+A collision occurs when two imported modules export non-identical providers under the same token. Resolve it in the module that imports both:
 
 ```ts
 @restRootModule({
@@ -192,14 +198,26 @@ When two imported modules export non-identical providers with the same token, re
 export class AppModule {}
 ```
 
-Use the `resolvedCollisionPer*` array that matches the provider level in the error message. If the collision comes from modules exported by the root module into an external package module, remove one exported module from the root and import it explicitly where needed.
+Match the `resolvedCollisionPer*` array to the provider scope level named in the collision error. If the collision originates from modules re-exported by a third-party package's root module, remove the conflicting re-exported module from the package root and import it explicitly where needed.
 
-## App Checklist
+## Common Mistakes
+
+- **Exporting controller classes** — controllers are not providers; only export injectable service tokens and modules.
+- **Exporting a new `ModuleWithParams` literal on re-export** — always reuse the same object reference that was passed to `imports`.
+- **Using `appends` for provider consumption** — `appends` only mounts controllers; it does not make the appended module's providers available.
+- **Expecting cross-module instance sharing at mod/rou/req level** — each module that declares a provider gets its own instance; use `providersPerApp` for true singletons.
+- **Omitting `path` in `imports` when controllers must be mounted** — without `path`, controllers from the imported module are not mounted even if the module has them.
+
+## Checklist
 
 1. Keep each feature module narrowly specialized.
-2. Use `imports` for provider/extension consumption and `appends` for route attachment only.
-3. Export tokens or modules, not provider objects.
-4. Use `getTokens()` when exporting tokens from a provider array containing object providers.
+2. Use `imports` for provider/extension consumption; use `appends` for route attachment only.
+3. Export tokens or modules — not provider objects.
+4. Use `getTokens()` when exporting tokens from an array that contains object-form providers.
 5. Use `ModuleWithParams` static methods for reusable parameterized imports.
-6. Re-export the same `ModuleWithParams` object instance that was imported.
-7. Resolve provider collisions explicitly instead of relying on import order.
+6. When re-exporting `ModuleWithParams`, export the same object reference that was imported.
+7. Resolve provider token collisions explicitly via `resolvedCollisionPer*` instead of relying on import order.
+
+## Further Reading
+
+For full metadata type shapes, `getTokens()` internals, route prefix composition rules, provider scope decision guide, `extensionsMeta` usage patterns, and collision error message interpretation, see [references/REFERENCE.md](references/REFERENCE.md).
