@@ -1,49 +1,84 @@
 ---
 name: ditsmod-extensions
-description: Practical guidance for using, configuring, ordering, exporting, grouping, and overriding Ditsmod extensions in applications. Use when a Ditsmod app developer needs to import modules with extensions, register extensions, configure beforeExtensions/afterExtensions/groups/export/exportOnly/overrideExtension, integrate route metadata extensions, or troubleshoot extension execution order.
+description: Practical guidance for creating, implementing, registering, configuring, ordering, exporting, grouping, and overriding Ditsmod extensions. Use when you need to write custom extensions with stage1/stage2/stage3 hooks, inject ExtensionManager to retrieve same-module or app-wide data (handling delay), dynamically register providers, or configure module extensions metadata.
 ---
 
 # Ditsmod Extensions
 
-Use this skill when writing application code that consumes Ditsmod extensions. Keep the focus on module metadata configuration, integration of external modules, and practical extension ordering.
+Use this skill when writing custom Ditsmod extensions or configuring metadata for existing extensions.
 
 ## Application Mental Model
 
 Extensions run after Ditsmod has collected static metadata from decorators, module imports/exports, and providers. They usually run before request handlers are created.
 
-Use extensions to make application infrastructure understand metadata. For example:
+Extensions are like "infrastructure providers" (similar to a cloud provider):
 
-- route extensions interpret route decorators;
-- OpenAPI extensions add route documentation metadata;
-- body parser extensions add interceptors before handlers are created;
-- custom extensions can initialize infrastructure or expose startup metadata.
+- Business logic is written in services, not in extensions.
+- Extensions prepare the infrastructure (e.g., dynamically adding route interceptors, setting up OpenAPI docs, or initializing database connections).
 
-Do not use an extension for per-request business logic. Put request-time behavior in controllers, services, guards, or interceptors.
+Extensions can be asynchronous and depend on each other.
+
+---
+
+## Implementing An Extension
+
+An extension is a class decorated with `@injectable()` that implements the `Extension` interface:
+
+```ts
+import { injectable, Extension, Logger } from "@ditsmod/core";
+
+@injectable()
+export class MyExtension implements Extension<any> {
+  constructor(private logger: Logger) {}
+
+  async stage1(isLastModule: boolean) {
+    // Stage 1: Called when providers are dynamically collected.
+  }
+
+  async stage2(injectorPerMod: Injector) {
+    // Stage 2: Called after stage1 runs for all modules.
+  }
+
+  async stage3() {
+    // Stage 3: Called after stage2 runs for all modules.
+  }
+}
+```
+
+### Constructor Injection Constraints
+
+- **CRITICAL**: The injector for the extension constructor is initialized **before any extensions run**.
+- You can inject statically registered module-level or app-level providers.
+- You **cannot** inject providers in the constructor that are dynamically added by other extensions.
+
+---
 
 ## Registering An Extension
 
-For a local extension that only needs to run in the current module, pass the class directly:
+Register extensions in the module metadata `extensions` array using decorators like `@featureModule`, `@restModule`, etc.
+
+### Direct Class Registration
+
+For local extensions that only need to run in the current module:
 
 ```ts
-import { restModule } from '@ditsmod/rest';
-import { AppMetadataExtension } from './app-metadata.extension.js';
-
 @restModule({
-  extensions: [AppMetadataExtension],
+  extensions: [SimpleExtension],
 })
 export class AppModule {}
 ```
 
-Use object form when the extension needs ordering, grouping, export behavior, or override behavior:
+### Config Object Registration
+
+Use the object form for advanced configuration:
 
 ```ts
-import { restModule, RestRouteExtension } from '@ditsmod/rest';
-
 @restModule({
   extensions: [
     {
-      extension: AppRouteExtension,
-      afterExtensions: [RestRouteExtension],
+      extension: SimpleExtension,
+      beforeExtensions: [RestRouteExtension],
+      afterExtensions: [],
       export: true,
     },
   ],
@@ -51,84 +86,165 @@ import { restModule, RestRouteExtension } from '@ditsmod/rest';
 export class FeatureModule {}
 ```
 
-## Ordering
+---
 
-Use `afterExtensions` when your extension consumes metadata produced by another extension. Use `beforeExtensions` when another extension must consume your extension's output.
+## Configuration Properties
 
-For route-related metadata, a common pattern is:
+### Ordering
 
-```ts
-extensions: [
-  {
-    extension: AppRouteExtension,
-    afterExtensions: [RestRouteExtension],
-    beforeExtensions: [PreRouterExtension],
-    exportOnly: true,
-  },
-]
-```
+- `beforeExtensions`: Array of extensions that must run **after** this extension.
+- `afterExtensions`: Array of extensions that must run **before** this extension.
 
-This means:
+### Exporting
 
-- `RestRouteExtension` first produces route metadata.
-- `AppRouteExtension` augments that metadata.
-- `PreRouterExtension` later creates final routing infrastructure from the augmented metadata.
+- `export: true`: The extension runs in the host module and in any module that imports this module.
+- `exportOnly: true`: The extension is made available to importing modules, but **does not run** in the host module where it is declared.
 
-## Exporting Extensions
+### Overriding
 
-Use `export: true` when importing modules should also receive and run the extension.
+- `overrideExtension`: Replaces an imported external extension with a custom one:
+  ```ts
+  extensions: [
+    { extension: MyExtension, overrideExtension: ExternalExtension },
+  ];
+  ```
 
-Use `exportOnly: true` when the extension should be available to importing modules but should not run in the module where it is declared. This is common in reusable infrastructure modules.
-
-Prefer direct local registration when the extension is purely app-local. Prefer exported registration when building a reusable feature module that should affect consumers.
+---
 
 ## Extension Groups
 
-Use `groups` when your extension contributes the same kind of metadata as another extension. The group token is an extension class.
+Groups allow extensions to be abstracted as types of work. Extensions in a group should return metadata sharing a common base interface.
+
+- Use `groups` to register an extension into one or more groups:
+  ```ts
+  extensions: [
+    {
+      extension: OpenapiRouteExtension,
+      groups: [RestRouteExtension],
+      export: true,
+    },
+  ];
+  ```
+- The group token is the extension class (e.g., `RestRouteExtension`).
+- When another extension requests data for `RestRouteExtension`, it receives the outputs of both `RestRouteExtension` and `OpenapiRouteExtension`.
+
+---
+
+## Using ExtensionManager
+
+`ExtensionManager` manages dependencies, caches stage1/group results, and detects cyclic dependency chains.
+
+Inject it in the constructor:
 
 ```ts
-extensions: [
-  { extension: AppOpenapiRouteExtension, groups: [RestRouteExtension], export: true },
-]
+constructor(private extensionManager: ExtensionManager) {}
 ```
 
-This lets consumers that request `RestRouteExtension` data receive data from both `RestRouteExtension` and `AppOpenapiRouteExtension`.
+### 1. Same-Module Dependency
 
-Only join a group when your extension returns data compatible with the group's base interface. Extending the interface is fine; narrowing or changing the meaning is not.
-
-## Overriding External Extensions
-
-Use `overrideExtension` when an imported module registers an extension and the app needs to replace it:
+To retrieve data from an extension/group in the current module:
 
 ```ts
-extensions: [
-  { extension: AppRouteExtension, overrideExtension: ExternalRouteExtension },
-]
+const stage1ExtensionMeta = await this.extensionManager.stage1(ExtensionToken);
+// Use stage1ExtensionMeta.groupData (array of payloads)
 ```
 
-Use override for replacement semantics. Use `groups` when both extensions should contribute compatible data. Use ordering only when your extension should run before or after another one without replacing it.
+### 2. Application-Wide Dependency (Cross-Module)
 
-## Choosing A Configuration
+If your extension requires aggregated data from an extension across the entire application, you must pass `this` as the second argument:
 
-Use this decision guide:
+```ts
+const stage1ExtensionMeta = await this.extensionManager.stage1(
+  ExtensionToken,
+  this,
+);
+```
 
-- Need the extension only in this module: `extensions: [MyExtension]`.
-- Need ordering: object form with `beforeExtensions` or `afterExtensions`.
-- Need importing modules to receive it: add `export: true`.
-- Need to export without running in the host module: use `exportOnly: true`.
-- Need to contribute compatible metadata to an existing workflow: use `groups`.
-- Need to replace an imported extension: use `overrideExtension`.
+- A separate instance of your extension is created for each module. Passing `this` guarantees that the framework waits until the target extension executes across all modules before resolving.
+
+### Handling `delay`
+
+When retrieving application-wide data, you **MUST** check the `delay` property:
+
+```ts
+const stage1ExtensionMeta = await this.extensionManager.stage1(
+  OtherExtension,
+  this,
+);
+if (stage1ExtensionMeta.delay) {
+  return; // Stop execution: Framework will invoke this extension again later
+}
+
+// Safe to access aggregated data:
+stage1ExtensionMeta.groupDataPerApp.forEach((totalStage1Meta) => {
+  totalStage1Meta.groupData.forEach((payload) => {
+    // ...
+  });
+});
+```
+
+---
+
+## Dynamic Provider Addition
+
+Extensions frequently dynamically register providers.
+
+1. **In `stage1()`**: Providers can be dynamically added to any level (app, module, route, request).
+2. **In `stage2(injectorPerMod)`**: Providers can still be dynamically added, but **only to levels lower than the module** (e.g., route or request level).
+
+### Code Pattern
+
+To read configs before registering interceptors/providers, resolve them using a temporary injector hierarchy:
+
+```ts
+async stage1() {
+  const stage1ExtensionMeta = await this.extensionManager.stage1(RestRouteExtension);
+  stage1ExtensionMeta.groupData.forEach((metadataPerMod3) => {
+    const { providersPerMod } = metadataPerMod3.baseMeta;
+
+    metadataPerMod3.aControllerMetadata.forEach(({ providersPerReq, scope }) => {
+      // 1. Setup temporary injector hierarchy to resolve config
+      const injectorPerApp = Injector.resolveAndCreate(this.providersPerApp, 'App');
+      const injectorPerMod = injectorPerApp.resolveAndCreateChild(providersPerMod);
+
+      // 2. Read configuration
+      const config = injectorPerMod.get(ConfigToken, {});
+
+      // 3. Conditionally register provider/interceptor
+      if (config.enableFeature) {
+        providersPerReq.push({
+          token: HTTP_INTERCEPTORS,
+          useClass: MyInterceptor,
+          multi: true
+        });
+      }
+    });
+  });
+}
+```
+
+Ensure your extension runs in the correct sequence (e.g., after the metadata is collected by `RestRouteExtension` but before it's finalized by `PreRouterExtension`).
+
+---
+
+## Choosing a Registration Configuration
+
+Use this decision guide to determine how to configure the extension in a module's metadata (e.g., `@featureModule`, `@restModule`) `extensions` array:
+
+- **Need the extension only in this module**: `extensions: [MyExtension]`.
+- **Need ordering constraints**: object form with `beforeExtensions` or `afterExtensions`.
+- **Need importing modules to run it**: add `export: true`.
+- **Need to export without running in host module**: use `exportOnly: true`.
+- **Need to contribute data to an existing pipeline group**: use `groups`.
+- **Need to replace an imported extension**: use `overrideExtension`.
+
+---
 
 ## Troubleshooting
 
-If an extension does not run where expected, check whether it is registered only in its host module and lacks `export` or `exportOnly`.
-
-If an extension runs too early, add `afterExtensions` for the producer extension it depends on.
-
-If an extension runs too late, add `beforeExtensions` for the target extension that consumes its output.
-
-If grouped metadata is missing, verify that the extension uses the correct group token. Group tokens are extension classes, not arbitrary strings.
-
-If replacing behavior does not work, use `overrideExtension` instead of only registering another extension in the same group.
-
-If per-request behavior seems stale, move that behavior to an interceptor, guard, controller, service, request-scoped provider, or `Context`; extensions usually run before request handlers are created.
+- **Extension does not run in importing module**: Verify it has `export: true` or `exportOnly: true` in its host module.
+- **Extension runs too early**: Add `afterExtensions` for the target extension it depends on.
+- **Extension runs too late**: Add `beforeExtensions` for the target extension that consumes its output.
+- **Group data is missing**: Verify that you registered with `groups` using the correct extension class token.
+- **Cyclic dependency**: Check the error log; `ExtensionManager` will print the full loop path.
+- **Aggregated data is incomplete/stale**: Verify you passed `this` as the second argument to `extensionManager.stage1(Token, this)` and handled `delay` by returning early.
