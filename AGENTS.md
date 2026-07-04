@@ -19,27 +19,6 @@ The `@ditsmod/core` contains only the bare-minimum foundational functionality (D
 - The role of the class must be specified in the class name suffix and separated by a dot: `<file-name>.<role-name>.ts`. For example, `hello-world.module.ts`, `hello-world.controller.ts`, etc. The same rule applies to the class name — the class role must be present and go at the end: `HelloWorldModule`, `HelloWorldController`, etc.
 - Decorator names start with lowercase.
 - Prefer ESM syntax and do not introduce CommonJS unless explicitly required.
-- Prefer native Node.js "Subpath Imports" (starting with `#`) over TypeScript `paths` (which are only defined in `tsconfig.json`). Subpath imports are runtime-resolved and more portable. Aliases starting with `#` must resolve to the compiled JavaScript directory (usually `dist`) in the `package.json` `imports` field. Additionally, these same aliases must be defined in TypeScript's `paths` inside `tsconfig.json`, but there they must resolve to the source TypeScript directory (`src`). This ensures that the runtime uses the compiled JavaScript, while the TypeScript compiler and IDE use the original source files for type-checking and autocompletion. For example:
-
-  ```json
-  // package.json
-  {
-    "imports": {
-      "#services/*": "./dist/services/*"
-    }
-  }
-  ```
-
-  ```json
-  // tsconfig.json
-  "compilerOptions": {
-    "paths": {
-      "#services/*": ["./src/services/*"],
-    },
-    // ...
-  },
-  ```
-
 - In TypeScript files, imports should be grouped by the following types and in the following order:
 
   ```ts
@@ -56,3 +35,5 @@ The `@ditsmod/core` contains only the bare-minimum foundational functionality (D
   ```
 
   Group imports only if there are more than two imports in the same file.
+
+- Prefer use native Node.js subpath imports (`#di/*`, `#init/*`, etc.) as internal aliases. In `tsconfig.json` they resolve to `src/`; in `package.json` `imports` they resolve to `dist/`. Always maintain both in sync when adding new internal modules.
