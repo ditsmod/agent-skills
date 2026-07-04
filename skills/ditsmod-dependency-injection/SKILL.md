@@ -32,7 +32,7 @@ interface LoggerConfig {
 export const LOGGER_CONFIG = new InjectionToken<LoggerConfig>('LOGGER_CONFIG');
 
 const providers: Provider[] = [
-  Logger,                                              // TypeProvider (shorthand)
+  Logger, // TypeProvider (shorthand)
   { token: LOGGER_CONFIG, useValue: { level: 'info' } },
   { token: Logger, useClass: ConsoleLogger },
   { token: 'alias-to-config', useToken: LOGGER_CONFIG },
@@ -95,7 +95,7 @@ providersPerApp   ← root (ancestor)
 Child injectors look **up** to parents for missing tokens; parent injectors never look down to children.
 
 Apply this rule when placing providers:
-If provider `A` depends on provider `B`, `B` must be registered in the same injector as `A` or in an ancestor injector. Do not put `B` only in a child injector.
+If provider `A` depends on provider `B`, `B` must be registered in the same injector as `A` or in an ancestor injector. Do not put `B` in a child injector.
 
 Important consequences:
 
@@ -170,6 +170,7 @@ When an `@injectable()` class extends a parent class, DI automatically injects a
 Three approaches (choose one):
 
 **Option A — `@ts-expect-error` (simplest):**
+
 ```ts
 import { ParentParams, injectable } from '@ditsmod/core/di';
 
@@ -186,6 +187,7 @@ class Child extends Parent {
 ```
 
 **Option B — `@inject` decorator (type-safe, no suppression):**
+
 ```ts
 import { ParentParams, injectable, inject } from '@ditsmod/core/di';
 
@@ -201,6 +203,7 @@ class Child extends Parent {
 ```
 
 **Option C — inline type assertion (type-safe, no suppression):**
+
 ```ts
 @injectable()
 class Child extends Parent {
