@@ -12,6 +12,8 @@ The core of the framework resides in `@ditsmod/core`, and all other Ditsmod pack
 
 The `@ditsmod/core` contains only the bare-minimum foundational functionality (DI, modules, extensions, etc.), which is insufficient to run a full web application. This is enough to run only `StandaloneApplication`, it does not include route-creating extensions, nor does it define concepts like controllers, guards, or interceptors. All these high-level web entities are provided by `@ditsmod/rest` and `@ditsmod/trpc`. But do not mix entities from `@ditsmod/rest` and `@ditsmod/trpc` in the same application, as they have different architectural styles. If a user is using a third-party package and you don't know what architectural style it is compatible with, look at its `peerDependencies` in the `package.json` file.
 
+Ditsmod packages are always published with their source files in the `src` folder, so agents can utilize them if needed.
+
 ## Code style
 
 - Kebab-case for names of any files and directories.
