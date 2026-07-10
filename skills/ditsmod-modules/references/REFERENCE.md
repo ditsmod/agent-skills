@@ -7,7 +7,7 @@
 ```ts
 // Source: @ditsmod/core — decorators/module-decorator-options.ts
 class ModuleDecoratorOptions<T extends AnyObj = AnyObj> {
-  // ModRefId = ModuleType | ModuleWithParams
+  // ModRefId = ModuleType | DynamicModule
   imports?: (ModRefId | ForwardRefFn<ModuleType>)[];
   exports?: any[];
   providersPerApp?: Providers | (Provider | ForwardRefFn<Provider>)[];
@@ -30,45 +30,45 @@ resolvedCollisionPerApp?: [any, ModRefId | ForwardRefFn<ModuleType>][];
 
 `@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `ModuleDecoratorOptions`.
 
-## `ModuleWithParams` Shape
+## `DynamicModule` Shape
 
-`ModuleWithParams` is composed of three interfaces in `@ditsmod/core`:
+`DynamicModule` is composed of three interfaces in `@ditsmod/core`:
 
 ```ts
 // Source: @ditsmod/core — decorators/module-decorator-options.ts
-interface BaseModuleWithParams<M extends AnyObj = AnyObj> {
+interface DynamicModuleBase<M extends AnyObj = AnyObj> {
   id?: string; // optional module identity string for disambiguation
   module: ModuleType<M> | ForwardRefFn<ModuleType<M>>;
 }
 
-interface FeatureModuleParams<E extends AnyObj = AnyObj> extends Partial<ProvidersOnly> {
+interface DynamicModuleOptions<E extends AnyObj = AnyObj> extends Partial<ProvidersOnly> {
   // ProvidersOnly provides: providersPerApp, providersPerMod, providersPerRou, providersPerReq
   exports?: any[];
   extensionsMeta?: E; // generic, not Record<string, unknown>
 }
 
 // The final exported type used in imports[]:
-interface ModuleWithParams<M extends AnyObj = AnyObj> extends BaseModuleWithParams<M>, FeatureModuleParams {
+interface DynamicModule<M extends AnyObj = AnyObj> extends DynamicModuleBase<M>, DynamicModuleOptions {
   initParams?: InitParamsMap; // present when used with init decorators
 }
 ```
 
-Note: there is **no** index signature (`[key: string]: unknown`) in `ModuleWithParams`. Extra properties are not generically allowed.
+Note: there is **no** index signature (`[key: string]: unknown`) in `DynamicModule`. Extra properties are not generically allowed.
 
-`path` is **not** a field of `ModuleWithParams` from `@ditsmod/core`. When using `@ditsmod/rest`, the object passed to `imports[]` is typed as `RestModuleParams`, which extends `FeatureModuleParams` and adds route-specific fields:
+`path` is **not** a field of `DynamicModule` from `@ditsmod/core`. When using `@ditsmod/rest`, the object passed to `imports[]` is typed as `RestModuleOptions`, which extends `DynamicModuleOptions` and adds route-specific fields:
 
 ```ts
 // Source: @ditsmod/rest — init/rest-init-raw-meta.ts
-// RestModuleParams = RestModuleParams1 | RestModuleParams2
-interface RestModuleParams1 extends BaseRestModuleParams {
+// RestModuleOptions = RestModuleOptions1 | RestModuleOptions2
+interface RestModuleOptions1 extends BaseRestModuleOptions {
   path?: string;
   absolutePath?: never; // mutually exclusive with absolutePath
 }
-interface RestModuleParams2 extends BaseRestModuleParams {
+interface RestModuleOptions2 extends BaseRestModuleOptions {
   absolutePath?: string;
   path?: never; // mutually exclusive with path
 }
-interface BaseRestModuleParams extends FeatureModuleParams {
+interface BaseRestModuleOptions extends DynamicModuleOptions {
   exports?: any[];
   guards?: GuardItem[];
 }
@@ -76,7 +76,7 @@ interface BaseRestModuleParams extends FeatureModuleParams {
 
 Use `path` for a relative route prefix, `absolutePath` for an absolute one. They cannot be set simultaneously.
 
-When a module is imported with `ModuleWithParams`, the framework treats the object identity as the module's key. This is why re-exporting must use the **same object reference**.
+When a module is imported with `DynamicModule`, the framework treats the object identity as the module's key. This is why re-exporting must use the **same object reference**.
 
 ## `getTokens()` Behavior
 
@@ -117,7 +117,7 @@ Use this decision tree when choosing provider scope:
 import { MY_EXTENSION } from './my.extension.js';
 
 export class DataModule {
-  static withConfig(config: DataConfig): ModuleWithParams<DataModule> {
+  static withConfig(config: DataConfig): DynamicModule<DataModule> {
     return {
       module: this,
       extensionsMeta: {

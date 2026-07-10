@@ -1,6 +1,6 @@
 ---
 name: ditsmod-modules
-description: 'Ditsmod modules: rootModule, featureModule, restRootModule, restModule, trpcRootModule, trpcModule decorators; imports vs appends vs exports; provider visibility (providersPerApp/Mod/Rou/Req); getTokens(); ModuleWithParams; re-exporting; resolvedCollisionPer* for token collision resolution. Use when assembling modules, wiring imports/exports, setting route prefixes, configuring provider scope, or fixing provider collision errors.'
+description: 'Ditsmod modules: rootModule, featureModule, restRootModule, restModule, trpcRootModule, trpcModule decorators; imports vs appends vs exports; provider visibility (providersPerApp/Mod/Rou/Req); getTokens(); DynamicModule; re-exporting; resolvedCollisionPer* for token collision resolution. Use when assembling modules, wiring imports/exports, setting route prefixes, configuring provider scope, or fixing provider collision errors.'
 ---
 
 # Ditsmod Modules
@@ -139,7 +139,7 @@ To pass through another module's exports to importers of the current module, bot
 export class SecurityModule {}
 ```
 
-When re-exporting a `ModuleWithParams` object, export the **same object reference** that was imported:
+When re-exporting a `DynamicModule` object, export the **same object reference** that was imported:
 
 ```ts
 const usersWithPath = { module: UsersModule, path: 'users' };
@@ -156,10 +156,10 @@ export class ApiModule {}
 Use a static factory method when a module is commonly imported with configuration:
 
 ```ts
-import { type ModuleWithParams } from '@ditsmod/core';
+import { type DynamicModule } from '@ditsmod/core';
 
 export class UsersModule {
-  static withPrefix(path: string): ModuleWithParams<UsersModule> {
+  static withPrefix(path: string): DynamicModule<UsersModule> {
     return { module: this, path };
   }
 }
@@ -172,7 +172,7 @@ export class UsersModule {
 export class ApiModule {}
 ```
 
-Pass extension-specific data via `extensionsMeta` inside `ModuleWithParams`. Keep each extension's data under a single dedicated key.
+Pass extension-specific data via `extensionsMeta` inside `DynamicModule`. Keep each extension's data under a single dedicated key.
 
 ## Provider Visibility And Lifetime
 
@@ -204,7 +204,7 @@ Match the `resolvedCollisionPer*` array to the provider scope level named in the
 ## Common Mistakes
 
 - **Exporting controller classes** — controllers are not providers; only export injectable service tokens and modules.
-- **Exporting a new `ModuleWithParams` literal on re-export** — always reuse the same object reference that was passed to `imports`.
+- **Exporting a new `DynamicModule` literal on re-export** — always reuse the same object reference that was passed to `imports`.
 - **Using `appends` for provider consumption** — `appends` only mounts controllers; it does not make the appended module's providers available.
 - **Expecting cross-module instance sharing at mod/rou/req level** — each module that declares a provider gets its own instance; use `providersPerApp` for true singletons.
 - **Omitting `path` in `imports` when controllers must be mounted** — without `path`, controllers from the imported module are not mounted even if the module has them.
@@ -215,8 +215,8 @@ Match the `resolvedCollisionPer*` array to the provider scope level named in the
 2. Use `imports` for provider/extension consumption; use `appends` for route attachment only.
 3. Export tokens or modules — not provider objects.
 4. Use `getTokens()` when exporting tokens from an array that contains object-form providers.
-5. Use `ModuleWithParams` static methods for reusable parameterized imports.
-6. When re-exporting `ModuleWithParams`, export the same object reference that was imported.
+5. Use `DynamicModule` static methods for reusable parameterized imports.
+6. When re-exporting `DynamicModule`, export the same object reference that was imported.
 7. Resolve provider token collisions explicitly via `resolvedCollisionPer*` instead of relying on import order.
 
 ## Further Reading
