@@ -9,7 +9,7 @@ interface Extension<T = any> {
   /**
    * Called at the stage when providers are dynamically added.
    * isLastModule === true when this is the last module that imports this extension.
-   * The return value T becomes the payload in Stage1ExtensionMeta.groupData[].
+   * The return value T becomes the payload in ExtensionGroupMeta.groupData[].
    */
   stage1?(isLastModule: boolean): Promise<T>;
 
@@ -33,18 +33,18 @@ All three methods are optional. The class must be decorated with `@injectable()`
 
 ---
 
-## `Stage1ExtensionMeta<T>` Shape
+## `ExtensionGroupMeta<T>` Shape
 
 Returned by `extensionManager.stage1(ExtCls)` (same-module call):
 
 ```ts
-class Stage1ExtensionMeta<T = any> {
+class ExtensionGroupMeta<T = any> {
   moduleName: string; // name of the module in which this meta was collected
   delay: boolean; // true when cross-module data is not yet complete
   countdown: number; // number of remaining modules that must run (0 when done)
-  groupDebugMeta: Stage1DebugMeta<T>[]; // debug info per extension instance
+  groupDebugMeta: ExtensionDebugMeta<T>[]; // debug info per extension instance
   groupData: T[]; // payloads returned by each extension.stage1() in this group/class
-  groupDataPerApp: Stage1ExtensionMetaPerApp<T>[]; // populated for cross-module calls only
+  groupDataPerApp: ExtensionGroupMetaPerApp<T>[]; // populated for cross-module calls only
 }
 ```
 
@@ -52,12 +52,12 @@ class Stage1ExtensionMeta<T = any> {
 
 ---
 
-## `Stage1ExtensionMetaPerApp<T>` Shape
+## `ExtensionGroupMetaPerApp<T>` Shape
 
-Each element of `groupDataPerApp` in a cross-module call. It is `Stage1ExtensionMeta<T>` without the `groupDataPerApp` field itself:
+Each element of `groupDataPerApp` in a cross-module call. It is `ExtensionGroupMeta<T>` without the `groupDataPerApp` field itself:
 
 ```ts
-type Stage1ExtensionMetaPerApp<T = any> = Omit<Stage1ExtensionMeta<T>, 'groupDataPerApp'>;
+type ExtensionGroupMetaPerApp<T = any> = Omit<ExtensionGroupMeta<T>, 'groupDataPerApp'>;
 // fields: moduleName, delay, countdown, groupDebugMeta, groupData
 ```
 
@@ -65,16 +65,16 @@ type Stage1ExtensionMetaPerApp<T = any> = Omit<Stage1ExtensionMeta<T>, 'groupDat
 
 ---
 
-## `Stage1DebugMeta<T>` Shape
+## `ExtensionDebugMeta<T>` Shape
 
 Debug metadata for a single extension instance within a group/class call:
 
 ```ts
-class Stage1DebugMeta<T = any> {
+class ExtensionDebugMeta<T = any> {
   constructor(
     public extension: Extension<T>, // the instance
     public payload: T, // value returned by extension.stage1()
-    public delay: boolean, // same meaning as Stage1ExtensionMeta.delay
+    public delay: boolean, // same meaning as ExtensionGroupMeta.delay
     public countdown: number, // remaining module count
   ) {}
 }
@@ -165,12 +165,12 @@ Used internally by `ExtensionManager`. `countdown === 0` means the extension has
 ## `ExtensionManager.stage1()` Overloads
 
 ```ts
-// Same-module call — always returns full Stage1ExtensionMeta<T> (delay always false)
-stage1<T>(ExtCls: ExtensionClass<T>): Promise<Stage1ExtensionMeta<T>>;
+// Same-module call — always returns full ExtensionGroupMeta<T> (delay always false)
+stage1<T>(ExtCls: ExtensionClass<T>): Promise<ExtensionGroupMeta<T>>;
 
-// Cross-module call — may return Stage1ExtensionMeta2<T> with delay: true
-// Stage1ExtensionMeta2 = OptionalProps<Stage1ExtensionMeta<T>, 'groupDebugMeta' | 'groupData' | 'moduleName' | 'countdown'>
-stage1<T>(ExtCls: ExtensionClass<T>, pendingExtension: Extension): Promise<Stage1ExtensionMeta2<T>>;
+// Cross-module call — may return PartialExtensionGroupMeta<T> with delay: true
+// PartialExtensionGroupMeta = OptionalProps<ExtensionGroupMeta<T>, 'groupDebugMeta' | 'groupData' | 'moduleName' | 'countdown'>
+stage1<T>(ExtCls: ExtensionClass<T>, pendingExtension: Extension): Promise<PartialExtensionGroupMeta<T>>;
 ```
 
 When `delay` is `false` on the cross-module call, the returned object has `groupDataPerApp` populated but `groupData`, `groupDebugMeta`, `moduleName`, and `countdown` are omitted. Always check `delay` before accessing `groupDataPerApp`.

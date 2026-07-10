@@ -32,7 +32,7 @@ resolvedCollisionPerApp?: [any, ModRefId | ForwardRefFn<ModuleType>][];
 
 ## `DynamicModule` Shape
 
-`DynamicModule` is composed of three interfaces in `@ditsmod/core`:
+`DynamicModule` is composed of interfaces in `@ditsmod/core` (`DynamicModuleBase` and `DynamicModuleOptions`), and `DynamicModuleWithInit` extends `DynamicModule`:
 
 ```ts
 // Source: @ditsmod/core — decorators/module-decorator-options.ts
@@ -41,8 +41,8 @@ interface DynamicModuleBase<M extends AnyObj = AnyObj> {
   module: ModuleType<M> | ForwardRefFn<ModuleType<M>>;
 }
 
-interface DynamicModuleOptions<E extends AnyObj = AnyObj> extends Partial<ProvidersOnly> {
-  // ProvidersOnly provides: providersPerApp, providersPerMod, providersPerRou, providersPerReq
+interface DynamicModuleOptions<E extends AnyObj = AnyObj> extends Partial<ProvidersByLevel> {
+  // ProvidersByLevel provides: providersPerApp, providersPerMod, providersPerRou, providersPerReq
   exports?: any[];
   extensionsMeta?: E; // generic, not Record<string, unknown>
 }

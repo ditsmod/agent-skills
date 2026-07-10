@@ -185,7 +185,7 @@ if (meta.delay) {
   return; // not ready yet — framework will re-invoke this extension
 }
 
-// meta.groupDataPerApp: Stage1ExtensionMetaPerApp<T>[]
+// meta.groupDataPerApp: ExtensionGroupMetaPerApp<T>[]
 //   Each entry = result from one module that registered OtherExtension
 meta.groupDataPerApp.forEach((perModMeta) => {
   // perModMeta.groupData: T[]  — payloads from that module
@@ -195,7 +195,7 @@ meta.groupDataPerApp.forEach((perModMeta) => {
 });
 ```
 
-For the full `Stage1ExtensionMeta` type shape, see [references/REFERENCE.md](references/REFERENCE.md).
+For the full `ExtensionGroupMeta` type shape, see [references/REFERENCE.md](references/REFERENCE.md).
 
 ---
 
@@ -268,4 +268,4 @@ Always ensure your extension is ordered **after** the extension that produces th
 
 ## Further Reading
 
-For full type definitions (`Extension<T>`, `Stage1ExtensionMeta<T>`, `Stage1ExtensionMetaPerApp<T>`, `ExtensionConfig` union), see [references/REFERENCE.md](references/REFERENCE.md).
+For full type definitions (`Extension<T>`, `ExtensionGroupMeta<T>`, `ExtensionGroupMetaPerApp<T>`, `ExtensionConfig` union), see [references/REFERENCE.md](references/REFERENCE.md).
