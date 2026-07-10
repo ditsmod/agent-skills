@@ -215,7 +215,7 @@ async stage1(): Promise<void> {
   const meta = await this.extensionManager.stage1(RestRouteExtension);
 
   meta.groupData.forEach((metadataPerMod3) => {
-    const { providersPerMod } = metadataPerMod3.baseMeta;
+    const { providersPerMod } = metadataPerMod3.normalizedModuleMeta;
 
     metadataPerMod3.aControllerMetadata.forEach(({ providersPerReq }) => {
       // Build a temporary injector to resolve module-level config

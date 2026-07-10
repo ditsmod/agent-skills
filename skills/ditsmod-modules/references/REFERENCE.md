@@ -2,11 +2,11 @@
 
 ## Full Module Metadata Shapes
 
-`@ditsmod/core` defines metadata via the `ModuleRawMetadata` class (passed to `rootModule` and `featureModule`):
+`@ditsmod/core` defines metadata via the `ModuleDecoratorOptions` class (passed to `rootModule` and `featureModule`):
 
 ```ts
-// Source: @ditsmod/core — decorators/module-raw-metadata.ts
-class ModuleRawMetadata<T extends AnyObj = AnyObj> {
+// Source: @ditsmod/core — decorators/module-decorator-options.ts
+class ModuleDecoratorOptions<T extends AnyObj = AnyObj> {
   // ModRefId = ModuleType | ModuleWithParams
   imports?: (ModRefId | ForwardRefFn<ModuleType>)[];
   exports?: any[];
@@ -28,14 +28,14 @@ class ModuleRawMetadata<T extends AnyObj = AnyObj> {
 resolvedCollisionPerApp?: [any, ModRefId | ForwardRefFn<ModuleType>][];
 ```
 
-`@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `ModuleRawMetadata`.
+`@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `ModuleDecoratorOptions`.
 
 ## `ModuleWithParams` Shape
 
 `ModuleWithParams` is composed of three interfaces in `@ditsmod/core`:
 
 ```ts
-// Source: @ditsmod/core — decorators/module-raw-metadata.ts
+// Source: @ditsmod/core — decorators/module-decorator-options.ts
 interface BaseModuleWithParams<M extends AnyObj = AnyObj> {
   id?: string; // optional module identity string for disambiguation
   module: ModuleType<M> | ForwardRefFn<ModuleType<M>>;
