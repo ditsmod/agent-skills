@@ -60,7 +60,7 @@ const classLevelB = Reflector.makeClassDecorator((config: MyConfig) => config);
 class UsersService {}
 ```
 
-*Note: Class decorator factories capture the directory where they are executed (`CallsiteUtils.getCallerDir()`), which is used by Ditsmod's module discovery to resolve relative paths.*
+*Note: Class decorator factories capture the directory where they are executed, which is used by Ditsmod's module discovery to resolve relative paths.*
 
 ### 2. Property / Method Decorator
 ```ts
