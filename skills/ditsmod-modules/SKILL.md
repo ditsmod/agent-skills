@@ -114,7 +114,8 @@ Export provider tokens, not provider objects. `providersPerApp` providers are gl
 Use `getTokens()` when the provider array contains object-form providers (e.g., `{ token, useClass, ... }`), because their tokens cannot be statically extracted otherwise:
 
 ```ts
-import { restModule, getTokens } from '@ditsmod/rest';
+import { getTokens } from '@ditsmod/core';
+import { restModule } from '@ditsmod/rest';
 import { authProviders } from './auth.providers.js';
 
 @restModule({
