@@ -262,7 +262,7 @@ Always ensure your extension is ordered **after** the extension that produces th
 | Group data is empty or missing             | Verify `groups: [TargetExtension]` uses the correct class token                                              |
 | `groupDataPerApp` is incomplete            | Ensure `this` is passed as second arg to `extensionManager.stage1()` and `delay` is handled                  |
 | Circular dependency error                  | Check the error log — `ExtensionManager` prints the full loop path; use `afterExtensions` to break the cycle |
-| `NotDeclaredInAfterExtensionList` error    | Extension A called `extensionManager.stage1(B)` but B was not listed in A's `afterExtensions`                |
+| `UndeclaredExtensionDependency` error       | Extension A called `extensionManager.stage1(B)` but B was not listed in A's `afterExtensions`                |
 
 ---
 
