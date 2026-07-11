@@ -10,10 +10,10 @@ class ModuleDecoratorOptions<T extends AnyObj = AnyObj> {
   // ModRefId = ModuleType | DynamicModule
   imports?: (ModRefId | ForwardRefFn<ModuleType>)[];
   exports?: any[];
-  providersPerApp?: Providers | (Provider | ForwardRefFn<Provider>)[];
-  providersPerMod?: Providers | (Provider | ForwardRefFn<Provider>)[];
-  providersPerRou?: Providers | (Provider | ForwardRefFn<Provider>)[];
-  providersPerReq?: Providers | (Provider | ForwardRefFn<Provider>)[];
+  providersPerApp?: ProviderBuilder | (Provider | ForwardRefFn<Provider>)[];
+  providersPerMod?: ProviderBuilder | (Provider | ForwardRefFn<Provider>)[];
+  providersPerRou?: ProviderBuilder | (Provider | ForwardRefFn<Provider>)[];
+  providersPerReq?: ProviderBuilder | (Provider | ForwardRefFn<Provider>)[];
   extensions?: (ExtensionConfig | ExtensionClass)[];
   extensionsMeta?: T; // generic — any object shape, not Record<string, unknown>
   resolvedCollisionPerMod?: [any, ModRefId | ForwardRefFn<ModuleType>][];
@@ -59,12 +59,12 @@ Note: there is **no** index signature (`[key: string]: unknown`) in `DynamicModu
 
 ```ts
 // Source: @ditsmod/rest — init/rest-init-raw-meta.ts
-// RestModuleOptions = RestModuleOptions1 | RestModuleOptions2
-interface RestModuleOptions1 extends BaseRestModuleOptions {
+// RestModuleOptions = PathRestModuleOptions | AbsolutePathRestModuleOptions
+interface PathRestModuleOptions extends BaseRestModuleOptions {
   path?: string;
   absolutePath?: never; // mutually exclusive with absolutePath
 }
-interface RestModuleOptions2 extends BaseRestModuleOptions {
+interface AbsolutePathRestModuleOptions extends BaseRestModuleOptions {
   absolutePath?: string;
   path?: never; // mutually exclusive with path
 }

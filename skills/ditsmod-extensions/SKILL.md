@@ -185,7 +185,7 @@ if (meta.delay) {
   return; // not ready yet — framework will re-invoke this extension
 }
 
-// meta.groupDataPerApp: ExtensionGroupMetaPerApp<T>[]
+// meta.groupDataPerApp: AppExtensionGroupMeta<T>[]
 //   Each entry = result from one module that registered OtherExtension
 meta.groupDataPerApp.forEach((perModMeta) => {
   // perModMeta.groupData: T[]  — payloads from that module
@@ -214,10 +214,10 @@ Extensions can dynamically push into provider arrays that are still being assemb
 async stage1(): Promise<void> {
   const meta = await this.extensionManager.stage1(RestRouteExtension);
 
-  meta.groupData.forEach((metadataPerMod3) => {
-    const { providersPerMod } = metadataPerMod3.normalizedModuleMeta;
+  meta.groupData.forEach((routeExtensionMeta) => {
+    const { providersPerMod } = routeExtensionMeta.normalizedModuleMeta;
 
-    metadataPerMod3.aControllerMetadata.forEach(({ providersPerReq }) => {
+    routeExtensionMeta.aControllerMetadata.forEach(({ providersPerReq }) => {
       // Build a temporary injector to resolve module-level config
       const injectorPerApp = Injector.resolveAndCreate(this.providersPerApp, 'App');
       const injectorPerMod  = injectorPerApp.resolveAndCreateChild(providersPerMod);
@@ -235,7 +235,7 @@ async stage1(): Promise<void> {
 }
 ```
 
-Always ensure your extension is ordered **after** the extension that produces the metadata (e.g., after `RestRouteExtension`) and **before** the extension that consumes it (e.g., before `PreRouterExtension`).
+Always ensure your extension is ordered **after** the extension that produces the metadata (e.g., after `RestRouteExtension`) and **before** the extension that consumes it (e.g., before `DispatcherExtension`).
 
 ---
 
@@ -268,4 +268,4 @@ Always ensure your extension is ordered **after** the extension that produces th
 
 ## Further Reading
 
-For full type definitions (`Extension<T>`, `ExtensionGroupMeta<T>`, `ExtensionGroupMetaPerApp<T>`, `ExtensionConfig` union), see [references/REFERENCE.md](references/REFERENCE.md).
+For full type definitions (`Extension<T>`, `ExtensionGroupMeta<T>`, `AppExtensionGroupMeta<T>`, `ExtensionConfig` union), see [references/REFERENCE.md](references/REFERENCE.md).

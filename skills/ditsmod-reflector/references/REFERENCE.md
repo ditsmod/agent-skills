@@ -11,11 +11,11 @@ This guide contains detailed API and type definitions for Ditsmod Reflector inte
 
 These are core interfaces and classes used by `Reflector` (primarily imported from `@ditsmod/core/di` or `@ditsmod/core`):
 
-### 1. `DecoratorAndValue<Value>`
+### 1. `DecoratorMeta<Value>`
 Stores the identifier of a decorator and the transformed value it returned:
 
 ```ts
-class DecoratorAndValue<Value = any> {
+class DecoratorMeta<Value = any> {
   constructor(
     public decorator: AnyFn,       // The decorator factory function
     public value: Value,           // The output returned by the decorator transformer
@@ -45,9 +45,9 @@ Contains metadata about a constructor, property, or method. Supports inheritance
 class MergedClassPropMeta<DecorValue = any> extends ClassPropMeta<DecorValue> {
   constructor(
     type: Class,                                           // Property type or class constructor type
-    decorators: DecoratorAndValue<DecorValue>[],           // Flattened array of decorators (merged from chain)
+    decorators: DecoratorMeta<DecorValue>[],           // Flattened array of decorators (merged from chain)
     params: (ParameterMeta | null)[],                       // Constructor/Method parameters metadata (merged)
-    public decoratorChain: Map<Class, DecoratorAndValue<DecorValue>[]>, // Key: Class, Value: class-specific decorators
+    public decoratorChain: Map<Class, DecoratorMeta<DecorValue>[]>, // Key: Class, Value: class-specific decorators
     public paramChain: Map<Class, (ParameterMeta | null)[]>,     // Key: Class, Value: class-specific parameters
   ) {}
 }
@@ -55,7 +55,7 @@ class MergedClassPropMeta<DecorValue = any> extends ClassPropMeta<DecorValue> {
 
 ### 4. Parameter Metadata Types
 ```ts
-type ParameterItem<Value = any> = DecoratorAndValue<Value> | InjectionToken<any> | Class;
+type ParameterItem<Value = any> = DecoratorMeta<Value> | InjectionToken<any> | Class;
 type ParameterMeta<Value = any> = [Class, ...ParameterItem<Value>[]] | [...ParameterItem<Value>[]] | [];
 ```
 

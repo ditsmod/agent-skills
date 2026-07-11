@@ -120,7 +120,7 @@ const metadata = Reflector.collectMeta(MyService);
 if (metadata) {
   // Read constructor metadata
   const ctorMeta = metadata.constructor;
-  console.log(ctorMeta.decorators); // Array of DecoratorAndValue on the constructor
+  console.log(ctorMeta.decorators); // Array of DecoratorMeta on the constructor
   console.log(ctorMeta.params);     // Array of constructor parameters and their decorators
 
   // Iterate over decorated property/method keys
@@ -163,7 +163,7 @@ if (childMeta) {
   console.log(ctor.decorators); // Contains child's decorators
 
   // Inheritance chains
-  console.log(ctor.decoratorChain); // Map<Class, DecoratorAndValue[]> containing Parent & Child decorators
+  console.log(ctor.decoratorChain); // Map<Class, DecoratorMeta[]> containing Parent & Child decorators
   console.log(ctor.paramChain);     // Map<Class, ParameterMeta[]> containing Parent & Child parameter metadata
 }
 ```
@@ -230,4 +230,4 @@ CustomReflector.setPropertyMeta(
 
 ## Further Reading
 
-For full type signatures of `MergedClassMeta`, `MergedClassPropMeta`, `DecoratorAndValue`, and helper classes, see [references/REFERENCE.md](references/REFERENCE.md).
+For full type signatures of `MergedClassMeta`, `MergedClassPropMeta`, `DecoratorMeta`, and helper classes, see [references/REFERENCE.md](references/REFERENCE.md).

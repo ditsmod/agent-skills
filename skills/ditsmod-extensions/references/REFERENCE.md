@@ -44,7 +44,7 @@ class ExtensionGroupMeta<T = any> {
   countdown: number; // number of remaining modules that must run (0 when done)
   groupDebugMeta: ExtensionDebugMeta<T>[]; // debug info per extension instance
   groupData: T[]; // payloads returned by each extension.stage1() in this group/class
-  groupDataPerApp: ExtensionGroupMetaPerApp<T>[]; // populated for cross-module calls only
+  groupDataPerApp: AppExtensionGroupMeta<T>[]; // populated for cross-module calls only
 }
 ```
 
@@ -52,12 +52,12 @@ class ExtensionGroupMeta<T = any> {
 
 ---
 
-## `ExtensionGroupMetaPerApp<T>` Shape
+## `AppExtensionGroupMeta<T>` Shape
 
 Each element of `groupDataPerApp` in a cross-module call. It is `ExtensionGroupMeta<T>` without the `groupDataPerApp` field itself:
 
 ```ts
-type ExtensionGroupMetaPerApp<T = any> = Omit<ExtensionGroupMeta<T>, 'groupDataPerApp'>;
+type AppExtensionGroupMeta<T = any> = Omit<ExtensionGroupMeta<T>, 'groupDataPerApp'>;
 // fields: moduleName, delay, countdown, groupDebugMeta, groupData
 ```
 

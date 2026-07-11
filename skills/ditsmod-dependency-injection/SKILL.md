@@ -1,6 +1,6 @@
 ---
 name: ditsmod-dependency-injection
-description: "Ditsmod DI: InjectionToken, injector hierarchy (providersPerApp/providersPerMod/providersPerRou/providersPerReq), provider types (TypeProvider/ValueProvider/ClassProvider/FactoryProvider/TokenProvider), multi-providers, Context, getSymbol, ParentParams, parameter decorators (inject/input/optional/fromSelf/skipSelf), pull() vs get(), debugging 'No provider for X' errors, Resolution path interpretation, @injectable decorator."
+description: "Ditsmod DI: InjectionToken, injector hierarchy (providersPerApp/providersPerMod/providersPerRou/providersPerReq), provider types (TypeProvider/ValueProvider/ClassProvider/FactoryProvider/TokenProvider), multi-providers, Context, createInjectionSymbol, ParentParams, parameter decorators (inject/input/optional/fromSelf/skipSelf), pull() vs get(), debugging 'No provider for X' errors, Resolution path interpretation, @injectable decorator."
 ---
 
 # Ditsmod Dependency Injection
@@ -133,18 +133,18 @@ To make one multi-provider entry substitutable, point the multi-provider at a cl
 
 ## Context
 
-Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `getSymbol<T>()` for typed context keys.
+Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `createInjectionSymbol<T>()` for typed context keys.
 
-Always include `...ctxProviders` in `Injector.resolveAndCreate()` when using `@ctx()` in class method parameters directly. In modular Ditsmod applications that import `CtxModule` (re-exported by `@ditsmod/rest`), these providers are already available — do not duplicate them.
+Always include `...contextProviders` in `Injector.resolveAndCreate()` when using `@ctx()` in class method parameters directly. In modular Ditsmod applications that import `ContextModule` (re-exported by `@ditsmod/rest`), these providers are already available — do not duplicate them.
 
 ```ts
-import { Context, Injector, ctx, ctxProviders, getSymbol } from '@ditsmod/core';
+import { Context, Injector, ctx, contextProviders, createInjectionSymbol } from '@ditsmod/core';
 
 interface RequestState {
   userId: string;
 }
 
-const REQUEST_STATE = getSymbol<RequestState>('REQUEST_STATE');
+const REQUEST_STATE = createInjectionSymbol<RequestState>('REQUEST_STATE');
 
 class Handler {
   handle(@ctx(REQUEST_STATE) state: RequestState) {
@@ -153,7 +153,7 @@ class Handler {
 }
 
 const injector = Injector.resolveAndCreate([
-  ...ctxProviders,
+  ...contextProviders,
   { token: 'user-id', useFactory: [Handler, Handler.prototype.handle] },
 ]);
 
