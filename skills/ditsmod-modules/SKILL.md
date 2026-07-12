@@ -5,6 +5,9 @@ description: 'Ditsmod modules: rootModule, featureModule, restRootModule, restMo
 
 # Ditsmod Modules
 
+> [!IMPORTANT]
+> The configuration of providers in modules is governed by Dependency Injection (DI) rules. When registering or wiring providers (such as in `providersPer*` arrays), you **must** follow the rules in the [ditsmod-dependency-injection](../ditsmod-dependency-injection/SKILL.md) skill (especially `@injectable()` decorator requirements and runtime token constraints).
+
 ## Choose The Module Type
 
 Ditsmod applications have two module roles:

@@ -6,6 +6,8 @@ Ditsmod is TypeScript Node.js framework based on decorators, modules, dependency
 
 The framework requires Node.js >=v24.0.0.
 
+In Ditsmod module decorators, metadata configuration (especially `imports`, `exports`, and `providersPer*` arrays) directly shapes the DI injector hierarchy. The transfer and visibility of this metadata are completely governed by the framework's Dependency Injection rules and behavior. For details on modules, see the [ditsmod-modules](skills/ditsmod-modules/SKILL.md) skill, and for DI behavior, see the [ditsmod-dependency-injection](skills/ditsmod-dependency-injection/SKILL.md) skill.
+
 ## Introduction to Ditsmod Packages
 
 The core of the framework resides in `@ditsmod/core`, and all other Ditsmod packages depend on it. This dependency is specified via `peerDependencies` in each package's `package.json`.

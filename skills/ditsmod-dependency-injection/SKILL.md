@@ -5,6 +5,9 @@ description: "Ditsmod DI: InjectionToken, injector hierarchy (providersPerApp/pr
 
 # Ditsmod Dependency Injection
 
+> [!IMPORTANT]
+> In Ditsmod applications, providers are registered inside modules (such as in `providersPer*` arrays) which shape the DI hierarchy. Before registering or wiring providers in application code, you **must** read the [ditsmod-modules](../ditsmod-modules/SKILL.md) skill to understand provider visibility, imports/exports, and collision resolution. Note that in unit tests, injectors can be instantiated directly (e.g., using `Injector.resolveAndCreate()`) without modules.
+
 Use this skill to make DI changes in the Ditsmod codebase without guessing framework behavior.
 
 ## Working Rules
