@@ -106,6 +106,7 @@ Important consequences:
 - Parent injectors never ask child injectors for tokens.
 - If a child delegates `get(Service)` to a parent, the parent creates `Service` using dependencies visible from the parent level, not from the child level.
 - Register a service in the child injector when it must use child-level overrides.
+- **Provider Shadowing:** Registering a provider at a higher level (e.g., `providersPerApp` or `providersPerMod`) will **not** override or change the behavior of that token at a lower level (e.g., `providersPerReq`) if the lower level already has its own provider registered for that token. The child-level provider shadows (overrides) the parent-level provider, not vice-versa.
 - Name injectors (e.g., `Injector.resolveAndCreate(providers, 'injectorName')`) in low-level tests or examples when hierarchy diagnostics matter.
 
 ## `get()` Versus `pull()`

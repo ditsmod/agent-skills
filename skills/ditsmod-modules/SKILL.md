@@ -206,7 +206,7 @@ Match the `resolvedCollisionPer*` array to the provider scope level named in the
 
 ### Default Providers and Collisions
 
-In `@ditsmod/core`, there are default provider arrays configured for different scopes, such as `defaultProvidersPerApp` (which includes `Logger`, `SystemLogMediator`, etc.) and `defaultProvidersPerMod` (which includes `ModuleInfo`). 
+Every `@ditsmod/*` package can define and export default provider arrays configured for different scopes (for example, `@ditsmod/core` exports `defaultProvidersPerApp` which includes `Logger`, `SystemLogMediator`, etc., and `defaultProvidersPerMod` which includes `ModuleInfo`). 
 
 These default providers are automatically added to their respective scopes. However, when exporting providers or modules, conflicts can arise:
 - If multiple imported modules export different providers for the same default tokens (e.g., conflicting definitions of `Logger` or `ModuleInfo`), a token collision occurs.
