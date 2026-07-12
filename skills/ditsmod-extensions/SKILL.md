@@ -115,6 +115,9 @@ Both accept an array of `ExtensionClass` values.
 | `export: true`     | Yes                  | Yes                        |
 | `exportOnly: true` | **No**               | Yes                        |
 
+> [!TIP]
+> When registering extensions that are only intended to run in importing modules (such as in wrapper, library, or shared modules), always prefer `exportOnly: true` over `export: true`. This prevents the extension from executing unnecessarily in the host module itself, which can lead to redundant execution or runtime errors due to missing configuration/routes in the host.
+
 ### Overriding
 
 Replace an imported extension with a custom one. The override form **only** accepts `extension` and `overrideExtension` — `beforeExtensions`, `afterExtensions`, `groups`, `export`, and `exportOnly` are **not** allowed in this form:
