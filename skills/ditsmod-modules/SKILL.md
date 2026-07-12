@@ -204,6 +204,15 @@ export class AppModule {}
 
 Match the `resolvedCollisionPer*` array to the provider scope level named in the collision error. If the collision originates from modules re-exported by a third-party package's root module, remove the conflicting re-exported module from the package root and import it explicitly where needed.
 
+### Default Providers and Collisions
+
+In `@ditsmod/core`, there are default provider arrays configured for different scopes, such as `defaultProvidersPerApp` (which includes `Logger`, `SystemLogMediator`, etc.) and `defaultProvidersPerMod` (which includes `ModuleInfo`). 
+
+These default providers are automatically added to their respective scopes. However, when exporting providers or modules, conflicts can arise:
+- If multiple imported modules export different providers for the same default tokens (e.g., conflicting definitions of `Logger` or `ModuleInfo`), a token collision occurs.
+- Avoid exporting default providers from your modules unless you are explicitly overriding them.
+- If a collision occurs on default tokens, resolve it in the importing module using the corresponding `resolvedCollisionPer*` metadata.
+
 ## Common Mistakes
 
 - **Exporting controller classes** — controllers are not providers; only export injectable service tokens and modules.
