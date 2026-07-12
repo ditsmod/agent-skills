@@ -135,6 +135,9 @@ Do not mix regular and multi-providers for the same token in one injector. If a 
 
 To make one multi-provider entry substitutable, point the multi-provider at a class with `useToken`, then override that class with a normal class provider.
 
+> [!TIP]
+> Authors of shared libraries or npm packages should prefer registering multi-providers via `useToken` pointing to a distinct class or token, rather than using `useClass` or `useValue` directly. This enables consumers of the package to easily substitute individual multi-provider entries by overriding the referenced class/token in their application injectors.
+
 ## Context
 
 Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `createInjectionSymbol<T>()` for typed context keys.
