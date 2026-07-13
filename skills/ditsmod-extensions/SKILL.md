@@ -18,7 +18,10 @@ Extensions run **after** Ditsmod collects static metadata from decorators but **
 
 ## Implementing An Extension
 
-An extension is a class decorated with `@injectable()` that implements the `Extension<T>` interface. All three stage methods are **optional** — implement only the stages you need:
+An extension is a class decorated with `@injectable()` that implements the `Extension<T>` interface. All three stage methods are **optional** — implement only the stages you need. 
+
+> [!IMPORTANT]
+> The stages `stage1`, `stage2`, and `stage3` are framework lifecycle hooks that are **always executed sequentially** in that order during the application bootstrap process. They are never skipped or executed out of order. Therefore, you can rely on state populated in `stage2` (like a module injector instance) to always be available in `stage3`.
 
 ```ts
 import { injectable } from '@ditsmod/core';
