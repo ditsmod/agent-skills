@@ -51,7 +51,7 @@ export class MyExtension implements Extension<MyPayload | void> {
 - The injector for the extension constructor is created **before any extension runs**.
 - You can only inject providers that were **statically** registered (module-level or app-level) before extensions execute.
 - You **cannot** inject providers that are dynamically added by other extensions.
-- The extensions injector and the application injector are two separate injectors from different hierarchy trees. The extensions injector is deleted after the extensions finish their work. All provider instances created in the extension constructor are created by the extensions injector. Therefore, one should not expect that instances created in the extension constructor will be the same instances as those created in the application.
+- The extension and application injectors belong to separate hierarchy trees. The extension injector is short-lived and destroyed once the extensions finish initializing. Because any providers instantiated within the extension's constructor belong to this temporary injector, they are not shared with the main application.
 
 ### `isLastModule` Parameter
 
