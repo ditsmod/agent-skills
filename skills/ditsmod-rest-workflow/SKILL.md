@@ -69,7 +69,7 @@ sequenceDiagram
 ### Phase 1: Entry Point (`RequestDispatcher`)
 
 The Node.js HTTP server listener routes all raw requests directly to `RequestDispatcher.requestListener`:
-*   Located in: [pre-router.ts](file:///srv/git/ditsmod/ditsmod/packages/rest/src/services/pre-router.ts)
+*   Located in: `@ditsmod/rest` (the `RequestDispatcher` class in `pre-router.ts` / `pre-router.js` — typically under `node_modules/@ditsmod/rest` or `packages/rest/src/services/pre-router.ts`).
 *   Scope: `providersPerApp` (Application scope singleton).
 *   **Key Responsibilities:**
     1.  Extracts URL pathname and search parameters.
@@ -83,7 +83,7 @@ The Node.js HTTP server listener routes all raw requests directly to `RequestDis
 ### Phase 2: Route Matching (`Router`)
 
 Matches HTTP request method and URL pathname to register handlers:
-*   Located in: [router.ts](file:///srv/git/ditsmod/ditsmod/packages/rest/src/services/router.ts)
+*   Located in: `@ditsmod/rest` (the `Router` class in `router.ts` / `router.js` — typically under `node_modules/@ditsmod/rest` or `packages/rest/src/services/router.ts`).
 *   **Key Responsibilities:**
     *   Finds matching handlers using a tree-based router (`find-my-way` or similar under the hood).
     *   Returns a `RouteMatch` containing `{ handle: RouteHandler | null, params: PathParam[] | null }`.
