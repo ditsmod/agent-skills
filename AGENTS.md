@@ -38,7 +38,7 @@ Ditsmod packages and `@ts-stack/*` packages are always published with their sour
   import { OtherService } from './other-service';
   ```
 
-  Group imports only if there are more than 4 imports in the same file.
+  Group imports only if there are more than 4 imports in one of the groups.
 
 - Prefer use native Node.js subpath imports (`#di/*`, `#init/*`, etc.) as internal aliases. In `tsconfig.json` they resolve to `src/`; in `package.json` `imports` they resolve to `dist/`. Always maintain both in sync when adding new internal modules.
 
