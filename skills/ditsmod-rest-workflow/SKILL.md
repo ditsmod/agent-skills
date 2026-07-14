@@ -29,7 +29,7 @@ sequenceDiagram
     Client->>Server: HTTP Request
     Server->>Dispatcher: requestListener(rawReq, rawRes)
     
-    Note over Dispatcher: withIsolationScope & Trace spans start here (if customized)
+    Note over Dispatcher: Custom tracing/context scopes start here (if customized)
     
     Dispatcher->>Router: find(method, pathname)
     Router-->>Dispatcher: RouteMatch (handle, params)
@@ -78,7 +78,7 @@ The Node.js HTTP server listener routes all raw requests directly to `RequestDis
     4.  If no route is found, calls `sendNotImplemented()` (returns `501` or `404` depending on routing state).
     5.  Wraps route execution in a `catch` block that delegates to `sendInternalServerError()` if an unhandled error escapes the router handler.
 *   **Customization / Interception:**
-    *   To wrap the **entire** request lifecycle (including routing, parameter parsing, and guards) inside a context, span, or isolation scope (e.g., Sentry request scope, trace spans, request ID logging), you **must** override `RequestDispatcher` at the `providersPerApp` level.
+    *   To wrap the **entire** request lifecycle (including routing, parameter parsing, and guards) inside a custom context or scope (e.g., OpenTelemetry tracing context, request ID logging), you **must** override `RequestDispatcher` at the `providersPerApp` level.
 
 ### Phase 2: Route Matching (`Router`)
 
@@ -109,7 +109,7 @@ Once a route is matched, Ditsmod executes the route's interceptor chain configur
 
 *   If an interceptor or controller throws an error, the error propagates up the interceptor chain.
 *   It is caught in the outer handler created by `PreRouterExtension` and passed to `HttpErrorHandler.handleError(err, ctx)`.
-*   If you override `HttpErrorHandler` (e.g., `SentryHttpErrorHandler`), you can intercept all controller/guard errors, log them, and format custom error responses.
+*   If you override `HttpErrorHandler` (e.g., with a custom error logging handler), you can intercept all controller/guard errors, log them, and format custom error responses.
 *   If an error escapes the handler entirely (e.g. a routing error or boot error), it is caught by `RequestDispatcher.sendInternalServerError()`.
 
 ---
@@ -120,12 +120,12 @@ Once a route is matched, Ditsmod executes the route's interceptor chain configur
     *   Since `HttpFrontend` and `GuardedInterceptor` are hardcoded at the beginning of the chain in `PreRouterExtension`, any standard `HTTP_INTERCEPTORS` pushed by plugins/modules will run **after** guards.
     *   To wrap guards or query-parameter parsing in a scope/span, override `RequestDispatcher`.
 2.  **Overriding `RequestDispatcher` requires Collision Resolution:**
-    *   When a module (like `SentryModule`) registers a custom `RequestDispatcher` in `providersPerApp` and is imported alongside `RestModule` (which also defines `RequestDispatcher`), it will cause a `ProvidersCollision` error during application bootstrap.
+    *   When a module (e.g., a custom telemetry module) registers a custom `RequestDispatcher` in `providersPerApp` and is imported alongside `RestModule` (which also defines `RequestDispatcher`), it will cause a `ProvidersCollision` error during application bootstrap.
     *   You **must** resolve this collision in the root module (`AppModule`) using the `resolvedCollisionPerApp` option:
         ```ts
-        @rootModule({
+        @restRootModule({
           resolvedCollisionPerApp: [
-            [RequestDispatcher, SentryModule] // Takes the Sentry dispatcher
+            [RequestDispatcher, CustomTelemetryModule] // Takes the custom dispatcher
           ]
         })
         ```
