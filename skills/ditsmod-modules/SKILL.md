@@ -112,7 +112,7 @@ export class AppModule {}
 
 ## Export Providers By Token
 
-Export provider tokens, not provider objects. `providersPerApp` providers are globally available and do not need exporting.
+Export provider tokens, not provider objects. `providersPerApp` providers are globally available and **must not** be listed in `exports` (doing so will throw a `ForbiddenAppExport` error at bootstrap).
 
 Use `getTokens()` when the provider array contains object-form providers (e.g., `{ token, useClass, ... }`), because their tokens cannot be statically extracted otherwise:
 
@@ -216,6 +216,7 @@ These default providers are automatically added to their respective scopes. Howe
 ## Common Mistakes
 
 - **Exporting controller classes** — controllers are not providers; only export injectable service tokens and modules.
+- **Exporting `providersPerApp` providers** — they are registered at the application level and globally inherited; exporting them explicitly throws a `ForbiddenAppExport` validation error.
 - **Exporting a new `DynamicModule` literal on re-export** — always reuse the same object reference that was passed to `imports`.
 - **Using `appends` for provider consumption** — `appends` only mounts controllers; it does not make the appended module's providers available.
 - **Expecting cross-module instance sharing at mod/rou/req level** — each module that declares a provider gets its own instance; use `providersPerApp` for true singletons.
