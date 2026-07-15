@@ -209,7 +209,10 @@ A collision occurs when two imported modules export non-identical providers unde
 export class AppModule {}
 ```
 
-Match the `resolvedCollisionPer*` array to the provider scope level named in the collision error. If the collision originates from modules re-exported by a third-party package's root module, remove the conflicting re-exported module from the package root and import it explicitly where needed.
+Match the `resolvedCollisionPer*` array to the provider scope level named in the collision error:
+- **Root module constraint:** `resolvedCollisionPerApp` is **only** available and valid on the root module (`rootModule` / `restRootModule` / `trpcRootModule`). You cannot configure or resolve application-level provider collisions inside feature modules. 
+- **Feature module resolution:** Collisions at module, route, or request levels (`resolvedCollisionPerMod`, `resolvedCollisionPerRou`, `resolvedCollisionPerReq`) must be resolved in whichever importing module encounters the conflict.
+- If the collision originates from modules re-exported by a third-party package's root module, remove the conflicting re-exported module from the package root and import it explicitly where needed.
 
 ### Default Providers and Collisions
 
