@@ -130,6 +130,13 @@ export class AuthModule {}
 
 Export only what consumer modules inject directly. Internal implementation services do not need to be exported unless consumers inject them. Do not export controllers — exports apply only to providers and modules.
 
+### Exporting and Re-Exporting from the Root Module
+
+Exporting providers or re-exporting modules from the root module (`AppModule`) is a special capability in Ditsmod:
+- Any providers listed in `providersPerMod`, `providersPerRou`, or `providersPerReq` of the root module that are also added to its `exports` will be automatically imported into **all other application modules** (at their respective levels: module, route, or request).
+- Similarly, if `AppModule` re-exports other modules (by listing them in both `imports` and `exports`), their exported providers/extensions will also be automatically imported into **all other application modules**.
+- **Crucial nuance:** These exported/re-exported providers and modules will **not** be added to external modules (those imported from `node_modules`). This makes it a clean way to share providers and modules across all local feature modules without polluting third-party packages.
+
 ## Re-Export Modules
 
 To pass through another module's exports to importers of the current module, both import and export it:
