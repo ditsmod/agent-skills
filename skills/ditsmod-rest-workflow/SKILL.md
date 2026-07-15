@@ -70,7 +70,7 @@ sequenceDiagram
 
 The Node.js HTTP server listener routes all raw requests directly to `RequestDispatcher.requestListener`:
 
-- Located in: `@ditsmod/rest` (the `RequestDispatcher` class in `pre-router.ts` / `pre-router.js` — typically under `node_modules/@ditsmod/rest` or `packages/rest/src/services/pre-router.ts`).
+- Located in: `@ditsmod/rest` (the `RequestDispatcher` class in `request-dispatcher.ts` / `request-dispatcher.js` — typically under `node_modules/@ditsmod/rest` or `packages/rest/src/services/request-dispatcher.ts`).
 - Scope: `providersPerApp` (Application scope singleton).
 - **Key Responsibilities:**
   1.  Extracts URL pathname and search parameters.
@@ -92,7 +92,7 @@ Matches HTTP request method and URL pathname to register handlers:
 
 ### Phase 3: The Interceptor Chain (`HTTP_INTERCEPTORS`)
 
-Once a route is matched, Ditsmod executes the route's interceptor chain configured in `PreRouterExtension`. The chain runs as nested calls (`next.handle()`), ordered as follows:
+Once a route is matched, Ditsmod executes the route's interceptor chain configured in `RequestDispatcherExtension`. The chain runs as nested calls (`next.handle()`), ordered as follows:
 
 1.  **`HttpFrontend`**
     - _Implementation:_ `RouteScopedHttpFrontend` or `RequestScopedHttpFrontend`.
@@ -110,7 +110,7 @@ Once a route is matched, Ditsmod executes the route's interceptor chain configur
 ## Error Handling Flow
 
 - If an interceptor or controller throws an error, the error propagates up the interceptor chain.
-- It is caught in the outer handler created by `PreRouterExtension` and passed to `HttpErrorHandler.handleError(err, ctx)`.
+- It is caught in the outer handler created by `RequestDispatcherExtension` and passed to `HttpErrorHandler.handleError(err, ctx)`.
 - If you override `HttpErrorHandler` (e.g., with a custom error logging handler), you can intercept all controller/guard errors, log them, and format custom error responses.
 - If an error escapes the handler entirely (e.g. a routing error or boot error), it is caught by `RequestDispatcher.sendInternalServerError()`.
 
@@ -119,7 +119,7 @@ Once a route is matched, Ditsmod executes the route's interceptor chain configur
 ## Critical Rules for AI Agents
 
 1.  **Do Not Place Logging/Tracing Interceptors in `HTTP_INTERCEPTORS` if they must cover Guards:**
-    - Since `HttpFrontend` and `GuardedInterceptor` are hardcoded at the beginning of the chain in `PreRouterExtension`, any standard `HTTP_INTERCEPTORS` pushed by plugins/modules will run **after** guards.
+    - Since `HttpFrontend` and `GuardedInterceptor` are hardcoded at the beginning of the chain in `RequestDispatcherExtension`, any standard `HTTP_INTERCEPTORS` pushed by plugins/modules will run **after** guards.
     - To wrap guards or query-parameter parsing in a scope/span, override `RequestDispatcher`.
 2.  **Overriding `RequestDispatcher` requires Collision Resolution:**
     - When a module (e.g., a custom telemetry module) registers a custom `RequestDispatcher` in `providersPerApp` and is imported alongside `RestModule` (which also defines `RequestDispatcher`), it will cause a `ProvidersCollision` error during application bootstrap.
