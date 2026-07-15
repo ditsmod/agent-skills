@@ -105,6 +105,14 @@ Once a route is matched, Ditsmod executes the route's interceptor chain configur
 4.  **`HttpBackend`**
     - The terminal handler in the chain. It instantiates the target controller (if request-scoped) and calls the bound route method.
 
+#### Extension Scheduling and Interceptor Order
+
+The execution order of HTTP interceptors in the runtime chain is determined by their registration order in the `HTTP_INTERCEPTORS` multi-provider array. When interceptors are added dynamically by extensions, their sequence is directly controlled by the extension scheduling configuration (`beforeExtensions` and `afterExtensions`):
+
+- **Bootstrap Ordering:** If `ExtensionA` runs before `ExtensionB` during application bootstrap, any interceptors pushed by `ExtensionA` to `providersPerReq` will appear in the array before those pushed by `ExtensionB`.
+- **Execution Ordering:** Interceptors registered first in the array become the outer interceptors in the chain (running first on the incoming request, and last on the outgoing response).
+- **Example:** A custom telemetry extension can be scheduled using `beforeExtensions: [DispatcherExtension]` and `afterExtensions: [RestRouteExtension]` to register its tracing interceptor at the precise stage of route composition, establishing a predictable execution order relative to other system interceptors.
+
 ---
 
 ## Error Handling Flow
