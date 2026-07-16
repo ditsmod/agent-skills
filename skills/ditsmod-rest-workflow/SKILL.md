@@ -131,10 +131,10 @@ The execution order of HTTP interceptors in the runtime chain is determined by t
     - To wrap guards or query-parameter parsing in a scope/span, override `RequestDispatcher`.
 2.  **Overriding `RequestDispatcher` requires Collision Resolution:**
     - When a module (e.g., a custom telemetry module) registers a custom `RequestDispatcher` in `providersPerApp` and is imported alongside `RestModule` (which also defines `RequestDispatcher`), it will cause a `ProvidersCollision` error during application bootstrap.
-    - You **must** resolve this collision in the root module (`AppModule`) using the `resolvedCollisionPerApp` option:
+    - You **must** resolve this collision in the root module (`AppModule`) using the `resolvedCollisionsPerApp` option:
       ```ts
       @restRootModule({
-        resolvedCollisionPerApp: [
+        resolvedCollisionsPerApp: [
           [RequestDispatcher, CustomTelemetryModule] // Takes the custom dispatcher
         ]
       })

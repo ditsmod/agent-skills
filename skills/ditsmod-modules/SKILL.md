@@ -1,6 +1,6 @@
 ---
 name: ditsmod-modules
-description: 'Ditsmod modules: rootModule, featureModule, restRootModule, restModule, trpcRootModule, trpcModule decorators; imports vs appends vs exports; provider visibility (providersPerApp/Mod/Rou/Req); getTokens(); DynamicModule; re-exporting; resolvedCollisionPer* for token collision resolution. Use when assembling modules, wiring imports/exports, setting route prefixes, configuring provider scope, or fixing provider collision errors.'
+description: 'Ditsmod modules: rootModule, featureModule, restRootModule, restModule, trpcRootModule, trpcModule decorators; imports vs appends vs exports; provider visibility (providersPerApp/Mod/Rou/Req); getTokens(); DynamicModule; re-exporting; resolvedCollisionsPer* for token collision resolution. Use when assembling modules, wiring imports/exports, setting route prefixes, configuring provider scope, or fixing provider collision errors.'
 ---
 
 # Ditsmod Modules
@@ -29,15 +29,15 @@ import { rootModule, featureModule } from '@ditsmod/core';
   exports: [], // Tokens or modules exposed to importers
   extensions: [], // Extensions to run
   extensionsMeta: {}, // Keyed data consumed by extensions
-  resolvedCollisionPerMod: [], // Collision resolution at module level
-  resolvedCollisionPerRou: [], // Collision resolution at route level
-  resolvedCollisionPerReq: [], // Collision resolution at request level
+  resolvedCollisionsPerMod: [], // Collision resolution at module level
+  resolvedCollisionsPerRou: [], // Collision resolution at route level
+  resolvedCollisionsPerReq: [], // Collision resolution at request level
 })
 export class SomeModule {}
 
 @rootModule({
   // All featureModule properties, plus:
-  resolvedCollisionPerApp: [], // Collision resolution at app level
+  resolvedCollisionsPerApp: [], // Collision resolution at app level
 })
 export class AppModule {}
 ```
@@ -48,7 +48,7 @@ export class AppModule {}
 import { restRootModule, restModule } from '@ditsmod/rest';
 
 @restModule({
-  // The same list of properties as the 'restRootModule' decorator, except 'resolvedCollisionPerApp'
+  // The same list of properties as the 'restRootModule' decorator, except 'resolvedCollisionsPerApp'
 })
 export class SomeModule {}
 
@@ -64,7 +64,7 @@ export class AppModule {}
 import { trpcRootModule, trpcModule } from '@ditsmod/trpc';
 
 @trpcModule({
-  // The same list of properties as the 'trpcRootModule' decorator, except 'resolvedCollisionPerApp'
+  // The same list of properties as the 'trpcRootModule' decorator, except 'resolvedCollisionsPerApp'
 })
 export class SomeModule {}
 
@@ -204,14 +204,14 @@ A collision occurs when two imported modules export non-identical providers unde
 ```ts
 @restRootModule({
   imports: [DefaultAuthModule, CustomAuthModule],
-  resolvedCollisionPerMod: [[AuthService, CustomAuthModule]],
+  resolvedCollisionsPerMod: [[AuthService, CustomAuthModule]],
 })
 export class AppModule {}
 ```
 
-Match the `resolvedCollisionPer*` array to the provider scope level named in the collision error:
-- **Root module constraint:** `resolvedCollisionPerApp` is **only** available and valid on the root module (`rootModule` / `restRootModule` / `trpcRootModule`). You cannot configure or resolve application-level provider collisions inside feature modules. 
-- **Feature module resolution:** Collisions at module, route, or request levels (`resolvedCollisionPerMod`, `resolvedCollisionPerRou`, `resolvedCollisionPerReq`) must be resolved in whichever importing module encounters the conflict.
+Match the `resolvedCollisionsPer*` array to the provider scope level named in the collision error:
+- **Root module constraint:** `resolvedCollisionsPerApp` is **only** available and valid on the root module (`rootModule` / `restRootModule` / `trpcRootModule`). You cannot configure or resolve application-level provider collisions inside feature modules. 
+- **Feature module resolution:** Collisions at module, route, or request levels (`resolvedCollisionsPerMod`, `resolvedCollisionsPerRou`, `resolvedCollisionsPerReq`) must be resolved in whichever importing module encounters the conflict.
 - If the collision originates from modules re-exported by a third-party package's root module, remove the conflicting re-exported module from the package root and import it explicitly where needed.
 
 ### Default Providers and Collisions
@@ -221,7 +221,7 @@ Every `@ditsmod/*` package can define and export default provider arrays configu
 These default providers are automatically added to their respective scopes. However, when exporting providers or modules, conflicts can arise:
 - If multiple imported modules export different providers for the same default tokens (e.g., conflicting definitions of `Logger` or `ModuleInfo`), a token collision occurs.
 - Avoid exporting default providers from your modules unless you are explicitly overriding them.
-- If a collision occurs on default tokens, resolve it in the importing module using the corresponding `resolvedCollisionPer*` metadata.
+- If a collision occurs on default tokens, resolve it in the importing module using the corresponding `resolvedCollisionsPer*` metadata.
 
 ## Common Mistakes
 
@@ -240,7 +240,7 @@ These default providers are automatically added to their respective scopes. Howe
 4. Use `getTokens()` when exporting tokens from an array that contains object-form providers.
 5. Use `DynamicModule` static methods for reusable parameterized imports.
 6. When re-exporting `DynamicModule`, export the same object reference that was imported.
-7. Resolve provider token collisions explicitly via `resolvedCollisionPer*` instead of relying on import order.
+7. Resolve provider token collisions explicitly via `resolvedCollisionsPer*` instead of relying on import order.
 
 ## Further Reading
 

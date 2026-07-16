@@ -16,16 +16,16 @@ class ModuleDecoratorOptions<T extends AnyObj = AnyObj> {
   providersPerReq?: ProviderBuilder | (Provider | ForwardRefFn<Provider>)[];
   extensions?: (ExtensionConfig | ExtensionClass)[];
   extensionsMeta?: T; // generic — any object shape, not Record<string, unknown>
-  resolvedCollisionPerMod?: [any, ModRefId | ForwardRefFn<ModuleType>][];
-  resolvedCollisionPerRou?: [any, ModRefId | ForwardRefFn<ModuleType>][];
-  resolvedCollisionPerReq?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+  resolvedCollisionsPerMod?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+  resolvedCollisionsPerRou?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+  resolvedCollisionsPerReq?: [any, ModRefId | ForwardRefFn<ModuleType>][];
 }
 ```
 
 `rootModule` adds one more field:
 
 ```ts
-resolvedCollisionPerApp?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+resolvedCollisionsPerApp?: [any, ModRefId | ForwardRefFn<ModuleType>][];
 ```
 
 `@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `ModuleDecoratorOptions`.
@@ -90,7 +90,7 @@ Use it whenever a provider array is constructed with object-form providers and y
 
 ## Import Order vs. Collision Resolution
 
-Import order does **not** determine which provider wins in a collision. Ditsmod detects any ambiguity between two imported modules that export different providers for the same token and throws a collision error, regardless of import order. Always resolve collisions explicitly via `resolvedCollisionPer*`.
+Import order does **not** determine which provider wins in a collision. Ditsmod detects any ambiguity between two imported modules that export different providers for the same token and throws a collision error, regardless of import order. Always resolve collisions explicitly via `resolvedCollisionsPer*`.
 
 ## Route Prefix Composition
 
@@ -137,11 +137,11 @@ Error: Collision was found in DataModule (providersPerMod) for token LogService.
 This collision can be resolved in one of the following modules: AppModule...
 ```
 
-- Identify the scope: `providersPerMod` → use `resolvedCollisionPerMod`
+- Identify the scope: `providersPerMod` → use `resolvedCollisionsPerMod`
 - Identify the token: `LogService`
 - Choose which module's provider to prefer: `[LogService, PreferredModule]`
 - Add to the consuming module:
 
 ```ts
-resolvedCollisionPerMod: [[LogService, PreferredModule]],
+resolvedCollisionsPerMod: [[LogService, PreferredModule]],
 ```
