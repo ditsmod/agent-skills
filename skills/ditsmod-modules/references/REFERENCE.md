@@ -49,7 +49,7 @@ interface DynamicModuleOptions<E extends AnyObj = AnyObj> extends Partial<Provid
 
 // The final exported type used in imports[]:
 interface DynamicModule<M extends AnyObj = AnyObj> extends DynamicModuleBase<M>, DynamicModuleOptions {
-  initParams?: InitParamsMap; // present when used with init decorators
+  initOpts?: InitOptsMap; // present when used with init decorators
 }
 ```
 
@@ -168,7 +168,7 @@ import {
 /**
  * An object with this type will be passed directly to the init decorator - @initSome({ one: 1, two: 2 })
  */
-interface ExtInitDecorOpts extends InitDecoratorOptions<InitParams> {
+interface ExtInitDecorOpts extends InitDecoratorOptions<InitOpts> {
   one?: number;
   two?: number;
 }
@@ -183,7 +183,7 @@ class SomeInitHooks extends InitHooks<ExtInitDecorOpts> {
 /**
  * An object with this type will be passed in the module metadata as a so-called "DynamicModule".
  */
-interface InitParams extends DynamicModuleOptions {
+interface InitOpts extends DynamicModuleOptions {
   path?: string;
   num?: number;
 }
@@ -206,7 +206,7 @@ function transformInitDecoratorOptions(data?: ExtInitDecorOpts): InitHooks<ExtIn
 }
 
 // Creating the init decorator
-const initSome: InitDecorator<ExtInitDecorOpts, InitParams, InitMeta> =
+const initSome: InitDecorator<ExtInitDecorOpts, InitOpts, InitMeta> =
   Reflector.makeClassDecorator(transformInitDecoratorOptions);
 
 // Using init decorator
@@ -280,6 +280,6 @@ export class MyFeatureModule {}
 
 When importing a module with parameters in the context of an init decorator (e.g. `imports: [{ module: Module1, path: 'some-prefix' }]`):
 
-1. The dynamic module's custom parameters (like `path` or `guards`) are merged into the `dynamicModule.initParams` Map under the decorator's token.
+1. The dynamic module's custom parameters (like `path` or `guards`) are merged into the `dynamicModule.initOpts` Map under the decorator's token.
 2. If `Module1` itself is a plain `@featureModule` (not decorated with `@initRest` or `@restModule`), the framework automatically retrieves the default hook class for the decorator from the application's register, clones it, registers it in the module's `mInitHooks` list, and calls `normalize()`.
 3. This ensures that custom parameters (such as REST routing prefixes and route guards) are correctly applied to plain feature modules during import.
