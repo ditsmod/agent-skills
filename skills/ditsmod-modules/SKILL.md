@@ -133,6 +133,7 @@ Export only what consumer modules inject directly. Internal implementation servi
 ### Exporting and Re-Exporting from the Root Module
 
 Exporting providers or re-exporting modules from the root module (`AppModule`) is a special capability in Ditsmod:
+
 - Any providers listed in `providersPerMod`, `providersPerRou`, or `providersPerReq` of the root module that are also added to its `exports` will be automatically imported into **all other application modules** (at their respective levels: module, route, or request).
 - Similarly, if `AppModule` re-exports other modules (by listing them in both `imports` and `exports`), their exported providers/extensions will also be automatically imported into **all other application modules**.
 - **Crucial nuance:** These exported/re-exported providers and modules will **not** be added to external modules (those imported from `node_modules`). This makes it a clean way to share providers and modules across all local feature modules without polluting third-party packages.
@@ -184,6 +185,28 @@ export class ApiModule {}
 
 Pass extension-specific data via `extensionsMeta` inside `DynamicModule`. Keep each extension's data under a single dedicated key.
 
+## Init Decorators
+
+An **init decorator** is a custom class decorator created using `Reflector.makeClassDecorator()` whose options are processed and normalized by **init hooks** during the module initialization phase.
+
+> [!WARNING]
+> If you can easily pass metadata to a module using a dynamic module, creating an init decorator is **not recommended**. Consider using a dynamic module first.
+
+### Roles of Init Decorators
+
+An init decorator can serve three roles:
+
+1. **Root Module Decorator** (e.g., `@restRootModule`): Declares a root module and extends the behavior/metadata of `@rootModule`. This decorator's transformer function returns an `InitHooks` subclass instance with its `moduleRole` property set to `'root'`.
+2. **Feature Module Decorator** (e.g., `@restModule`): Declares a feature module and extends the behavior/metadata of `@featureModule`. This decorator's transformer function returns an `InitHooks` subclass instance with its `moduleRole` property set to `'feature'`.
+3. **Modifier Decorator** (e.g., `@initRest`): Modifies/extends an already declared root or feature module. This decorator's transformer function returns an `InitHooks` subclass instance with its `moduleRole` property set to `undefined`. Several modifier decorators can be applied to a single class (stacked).
+
+### Decorator Usage Rules
+
+- A class decorated with a root or feature module init decorator (role `'root'` or `'feature'`) **does not** require standard `@rootModule` or `@featureModule` decorators.
+- A class decorated only with a modifier decorator (role `undefined`) **must** be accompanied by a module decorator (standard or init-based). Otherwise, a `MissingModuleDecorator` error is thrown.
+
+For complete guide on creating init decorators, subclassing `InitHooks`, and parameter merging, see [references/REFERENCE.md](references/REFERENCE.md#init-decorators).
+
 ## Provider Visibility And Lifetime
 
 Provider registration level determines scope and sharing:
@@ -210,15 +233,17 @@ export class AppModule {}
 ```
 
 Match the `resolvedCollisionsPer*` array to the provider scope level named in the collision error:
-- **Root module constraint:** `resolvedCollisionsPerApp` is **only** available and valid on the root module (`rootModule` / `restRootModule` / `trpcRootModule`). You cannot configure or resolve application-level provider collisions inside feature modules. 
+
+- **Root module constraint:** `resolvedCollisionsPerApp` is **only** available and valid on the root module (`rootModule` / `restRootModule` / `trpcRootModule`). You cannot configure or resolve application-level provider collisions inside feature modules.
 - **Feature module resolution:** Collisions at module, route, or request levels (`resolvedCollisionsPerMod`, `resolvedCollisionsPerRou`, `resolvedCollisionsPerReq`) must be resolved in whichever importing module encounters the conflict.
 - If the collision originates from modules re-exported by a third-party package's root module, remove the conflicting re-exported module from the package root and import it explicitly where needed.
 
 ### Default Providers and Collisions
 
-Every `@ditsmod/*` package can define and export default provider arrays configured for different scopes (for example, `@ditsmod/core` exports `defaultProvidersPerApp` which includes `Logger`, `SystemLogMediator`, etc., and `defaultProvidersPerMod` which includes `ModuleInfo`). 
+Every `@ditsmod/*` package can define and export default provider arrays configured for different scopes (for example, `@ditsmod/core` exports `defaultProvidersPerApp` which includes `Logger`, `SystemLogMediator`, etc., and `defaultProvidersPerMod` which includes `ModuleInfo`).
 
 These default providers are automatically added to their respective scopes. However, when exporting providers or modules, conflicts can arise:
+
 - If multiple imported modules export different providers for the same default tokens (e.g., conflicting definitions of `Logger` or `ModuleInfo`), a token collision occurs.
 - Avoid exporting default providers from your modules unless you are explicitly overriding them.
 - If a collision occurs on default tokens, resolve it in the importing module using the corresponding `resolvedCollisionsPer*` metadata.

@@ -145,3 +145,141 @@ This collision can be resolved in one of the following modules: AppModule...
 ```ts
 resolvedCollisionsPerMod: [[LogService, PreferredModule]],
 ```
+
+## Init Decorators and InitHooks {#init-decorators}
+
+### Custom Decorator Creation Syntax
+
+Use `Reflector.makeClassDecorator(transformInitDecoratorOptions, name, parentInitDecorator)` to create an init decorator:
+
+```ts
+import {
+  InitHooks,
+  InitDecorator,
+  Reflector,
+  InitDecoratorOptions,
+  DynamicModuleOptions,
+  NormalizedInitMeta,
+  NormalizedModuleMeta,
+  RootDecoratorOptions,
+} from '@ditsmod/core';
+// ...
+
+/**
+ * An object with this type will be passed directly to the init decorator - @initSome({ one: 1, two: 2 })
+ */
+interface ExtInitDecorOpts extends InitDecoratorOptions<InitParams> {
+  one?: number;
+  two?: number;
+}
+
+/**
+ * The methods of this class will normalize and validate the module metadata.
+ */
+class SomeInitHooks extends InitHooks<ExtInitDecorOpts> {
+  // ...
+}
+
+/**
+ * An object with this type will be passed in the module metadata as a so-called "DynamicModule".
+ */
+interface InitParams extends DynamicModuleOptions {
+  path?: string;
+  num?: number;
+}
+
+/**
+ * Init hooks transform an object of ExtInitDecorOpts into an object of that type.
+ */
+interface InitMeta extends NormalizedInitMeta {
+  normalizedModuleMeta: NormalizedModuleMeta;
+  initDecoratorOptions: RootDecoratorOptions;
+}
+
+function transformInitDecoratorOptions(data?: ExtInitDecorOpts): InitHooks<ExtInitDecorOpts> {
+  const metadata = Object.assign({}, data);
+  const initHooks = new SomeInitHooks(metadata);
+  initHooks.moduleRole = undefined;
+  // OR initHooks.moduleRole = 'root';
+  // OR initHooks.moduleRole = 'feature';
+  return initHooks;
+}
+
+// Creating the init decorator
+const initSome: InitDecorator<ExtInitDecorOpts, InitParams, InitMeta> =
+  Reflector.makeClassDecorator(transformInitDecoratorOptions);
+
+// Using init decorator
+@initSome({ one: 1, two: 2 })
+export class SomeModule {}
+```
+
+### `InitHooks` Methods and Properties
+
+- `moduleRole?: 'root' | 'feature'`: Set to `'root'` or `'feature'` to make the init decorator act as a complete module decorator (meaning standard decorators are not required).
+- `hostModule?: ModuleType`: If specified, the module class representing the host module will be automatically imported into any module class decorated with this init decorator.
+- `hostDecoratorOptions?: T`: Raw options to pass to the decorator for the host module. When `hostModule` is normalizer-scanned, this allows attaching metadata to the host module class without directly decorating it (avoiding circular imports).
+- `normalize(normalizedModuleMeta)`: Normalizes and validates raw options, returning a normalized metadata object that is saved in `normalizedModuleMeta.initMeta`.
+- `getModulesToScan(meta)`: Returns an array of `ModRefId` modules that should also be scanned (e.g., appended modules in REST).
+- `exportAppProviders(config)`: Invoked at bootstrap to collect and export application-level providers.
+- `importModulesShallow(config)`: Invoked during shallow imports step to collect routes, paths, controllers, and guards.
+- `importModulesDeep(config)`: Invoked during deep imports step to resolve provider dependencies.
+- `getProvidersToOverride(meta)`: Returns array of arrays of providers that are overridable.
+
+### Grouping Init-Decorators via `decoratorId`
+
+When creating a substitute decorator (with `'root'` or `'feature'` role) using `Reflector.makeClassDecorator()`, you **must** pass the base modifier decorator (e.g. `initRest` or `initSome`) as the third argument. This third argument serves as the `decoratorId`. It tells Ditsmod that these decorators belong to the same group, enabling the framework to correctly collect, normalize, and associate metadata with the proper group context during initialization.
+
+### Separation of Module Logic and Substitute Decorators via hostModule
+
+Separating the decorator's metadata definition from the host feature module is necessary to avoid circular dependencies (decorating the host module with itself would create an import loop):
+
+1. Create a standard feature module (e.g. `MyCoreModule`) containing all necessary providers, middlewares, and extensions.
+2. In your custom `InitHooks` subclass, specify `override hostModule = MyCoreModule`.
+3. Create the base modifier decorator (e.g. `initMy`) which serves as the group parent decorator.
+4. Create the transformer function that returns the hooks instance and sets `hooks.moduleRole = 'feature'` (or `'root'`).
+5. Create the substitute custom decorator (e.g. `myFeatureModule`) using `Reflector.makeClassDecorator()`, passing the transformer as the first argument, its name as the second, and the base modifier decorator (`initMy`) as the third argument (the parent).
+6. When developers apply this substitute decorator (e.g. `@myFeatureModule`), the framework recognizes it as a module decorator (requiring only one decorator on the class instead of two) and automatically imports `MyCoreModule`.
+
+Example:
+
+```ts
+import { featureModule, InitHooks, Reflector } from '@ditsmod/core';
+
+// 1. Standard module containing actual logic/providers
+@featureModule({
+  providersPerReq: [MyService],
+  exports: [MyService],
+})
+export class MyCoreModule {}
+
+// 2. Custom hooks setting hostModule
+class MyInitHooks extends InitHooks {
+  override hostModule = MyCoreModule;
+}
+
+// 3. Creating the base modifier decorator (serves as the group parent)
+export const initMy = Reflector.makeClassDecorator((data) => new MyInitHooks(data), 'initMy');
+
+// 4. Creating the transformer that sets moduleRole = 'feature'
+function transformFeatureMeta(data?: any) {
+  const hooks = new MyInitHooks(data);
+  hooks.moduleRole = 'feature'; // Makes it a substitute module decorator
+  return hooks;
+}
+
+// 5. Creating the substitute decorator, passing initMy as the 3rd argument
+export const myFeatureModule = Reflector.makeClassDecorator(transformFeatureMeta, 'myFeatureModule', initMy);
+
+// 6. Using only one decorator on the class (automatically imports MyCoreModule)
+@myFeatureModule()
+export class MyFeatureModule {}
+```
+
+### Parameter Merging and plain Modules with Parameters (MWP)
+
+When importing a module with parameters in the context of an init decorator (e.g. `imports: [{ module: Module1, path: 'some-prefix' }]`):
+
+1. The dynamic module's custom parameters (like `path` or `guards`) are merged into the `dynamicModule.initParams` Map under the decorator's token.
+2. If `Module1` itself is a plain `@featureModule` (not decorated with `@initRest` or `@restModule`), the framework automatically retrieves the default hook class for the decorator from the application's register, clones it, registers it in the module's `mInitHooks` list, and calls `normalize()`.
+3. This ensures that custom parameters (such as REST routing prefixes and route guards) are correctly applied to plain feature modules during import.

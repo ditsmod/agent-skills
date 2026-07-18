@@ -1,6 +1,6 @@
 ---
 name: ditsmod-reflector
-description: "Creating custom decorators using Reflector (makeClassDecorator, makePropDecorator, makeParamDecorator), metadata collection (collectMeta, getClassLevelMeta), reading decorator and parameter chains (decoratorChain, paramChain), testing requirements (reflect-metadata/lite, tsconfig flags), and programmatic metadata writing."
+description: 'Creating custom decorators using Reflector (makeClassDecorator, makePropDecorator, makeParamDecorator), metadata collection (collectMeta, getClassLevelMeta), reading decorator and parameter chains (decoratorChain, paramChain), testing requirements (reflect-metadata/lite, tsconfig flags), and programmatic metadata writing.'
 ---
 
 # Ditsmod Reflector
@@ -12,6 +12,7 @@ Use this skill to create custom decorators, extract decorator metadata, and insp
 Standard JavaScript `Reflect` API (supplemented by `reflect-metadata`) allows storing and retrieving arbitrary metadata keys on classes, properties, or parameters. However, it operates on low-level string keys (e.g., `design:paramtypes`) and does not natively support class inheritance merging or decorator structures.
 
 Ditsmod's `Reflector` provides a unified, cached, and high-level abstraction:
+
 - **Unified Decorators:** It generates type-safe decorators that automatically register metadata in internal registries when evaluated.
 - **Inheritance Traversal:** It merges class, property, and parameter metadata from parent classes down to children.
 - **Iterability:** `collectMeta(Cls)` returns a `MergedClassMeta` object which is iterable and provides property-by-property details.
@@ -22,6 +23,7 @@ Ditsmod's `Reflector` provides a unified, cached, and high-level abstraction:
 ## Prerequisites & Compilation
 
 For reflection metadata to work, ensure these requirements are met:
+
 1. **tsconfig.json Flags:**
    ```json
    {
@@ -40,9 +42,10 @@ For reflection metadata to work, ensure these requirements are met:
 
 ## Creating Custom Decorators
 
-Use the static factory methods of `Reflector` to create decorators. 
+Use the static factory methods of `Reflector` to create decorators.
 
 ### 1. Class Decorator
+
 ```ts
 import { Reflector } from '@ditsmod/core/di';
 
@@ -60,9 +63,18 @@ const classLevelB = Reflector.makeClassDecorator((config: MyConfig) => config);
 class UsersService {}
 ```
 
-*Note: Class decorator factories capture the directory where they are executed, which is used by Ditsmod's module discovery to resolve relative paths.*
+#### Class Decorator Arguments (Reflector.makeClassDecorator)
+
+`Reflector.makeClassDecorator()` accepts up to three arguments:
+
+1. **`transformer`**: (Optional) A function that transforms the decorator arguments into a structured object (e.g., `(config) => config`).
+2. **`name`**: (Optional) A string containing the name of the decorator.
+3. **`decoratorId`**: (Optional) An identifier (typically another decorator factory function) to group related class decorators together. This is a general feature of `Reflector.makeClassDecorator()` that allows different class decorators to share a common ID, facilitating their collection and inspection under the same group. For example, in init-decorators, the substitute decorators (like `restModule`) pass the base modifier decorator (like `initRest`) as the `decoratorId` so Ditsmod knows they belong to the same group.
+
+_Note: Class decorator factories capture the directory where they are executed, which is used by Ditsmod's module discovery to resolve relative paths._
 
 ### 2. Property / Method Decorator
+
 ```ts
 import { Reflector } from '@ditsmod/core/di';
 
@@ -75,6 +87,7 @@ class Controller {
 ```
 
 ### 3. Parameter Decorator
+
 ```ts
 import { Reflector } from '@ditsmod/core/di';
 
@@ -121,7 +134,7 @@ if (metadata) {
   // Read constructor metadata
   const ctorMeta = metadata.constructor;
   console.log(ctorMeta.decorators); // Array of DecoratorMeta on the constructor
-  console.log(ctorMeta.params);     // Array of constructor parameters and their decorators
+  console.log(ctorMeta.params); // Array of constructor parameters and their decorators
 
   // Iterate over decorated property/method keys
   for (const propName of metadata) {
@@ -164,7 +177,7 @@ if (childMeta) {
 
   // Inheritance chains
   console.log(ctor.decoratorChain); // Map<Class, DecoratorMeta[]> containing Parent & Child decorators
-  console.log(ctor.paramChain);     // Map<Class, ParameterMeta[]> containing Parent & Child parameter metadata
+  console.log(ctor.paramChain); // Map<Class, ParameterMeta[]> containing Parent & Child parameter metadata
 }
 ```
 
@@ -173,7 +186,7 @@ if (childMeta) {
 Ditsmod provides experimental helper methods to attach metadata programmatically without using decorators directly (useful for code generators, dynamic routing setups, or testing environments).
 
 > [!IMPORTANT]
-> These methods (`setClassMeta`, `setPropertyMeta`, `setParameterMeta`) are **`protected static`** in the `Reflector` class. They are not part of the public API. 
+> These methods (`setClassMeta`, `setPropertyMeta`, `setParameterMeta`) are **`protected static`** in the `Reflector` class. They are not part of the public API.
 > To use them, you must subclass `Reflector` to expose them publicly or access them via a type assertion/cast:
 
 ```ts
@@ -208,7 +221,8 @@ CustomReflector.setPropertyMeta(
   'tellHello',
   Function, // property type
   route,
-  'GET', 'hello' // decorator arguments
+  'GET',
+  'hello', // decorator arguments
 );
 ```
 
@@ -217,14 +231,14 @@ CustomReflector.setPropertyMeta(
 ## Troubleshooting Checklist
 
 1. **`Reflect.defineMetadata is not a function` error:**
-   * Ensure `@ditsmod/core` is imported (which automatically loads `reflect-metadata/lite` at startup), or explicitly import `reflect-metadata/lite` in entry points/test configurations that do not load `@ditsmod/core` early enough (e.g. `setupFilesAfterEnv` in Jest).
+   - Ensure `@ditsmod/core` is imported (which automatically loads `reflect-metadata/lite` at startup), or explicitly import `reflect-metadata/lite` in entry points/test configurations that do not load `@ditsmod/core` early enough (e.g. `setupFilesAfterEnv` in Jest).
 2. **Missing metadata for constructor arguments or properties:**
-   * Verify that the class is decorated (e.g. with `@injectable()`, `@controller()`, etc.). If a class or property has no decorators at all, the TypeScript compiler will not emit any design metadata, even with `emitDecoratorMetadata` enabled.
-   * Verify that `"emitDecoratorMetadata": true` and `"experimentalDecorators": true` are enabled in `tsconfig.json`.
+   - Verify that the class is decorated (e.g. with `@injectable()`, `@controller()`, etc.). If a class or property has no decorators at all, the TypeScript compiler will not emit any design metadata, even with `emitDecoratorMetadata` enabled.
+   - Verify that `"emitDecoratorMetadata": true` and `"experimentalDecorators": true` are enabled in `tsconfig.json`.
 3. **TypeScript compiler loses types after compiling imports:**
-   * Check if parameter types in the constructor are imported using `import type` or interfaces. TypeScript does not emit runtime metadata for type-only constructs. Use classes, or use the `@inject(MY_TOKEN)` decorator on the parameter alongside the corresponding TypeScript interface/type.
+   - Check if parameter types in the constructor are imported using `import type` or interfaces. TypeScript does not emit runtime metadata for type-only constructs. Use classes, or use the `@inject(MY_TOKEN)` decorator on the parameter alongside the corresponding TypeScript interface/type.
 4. **Decorator decoratorId type checks fail:**
-   * When creating complex decorator factories, ensure you provide a valid `decoratorId` function/symbol and match it with a corresponding `TypeGuard`.
+   - When creating complex decorator factories, ensure you provide a valid `decoratorId` function/symbol and match it with a corresponding `TypeGuard`.
 
 ---
 
