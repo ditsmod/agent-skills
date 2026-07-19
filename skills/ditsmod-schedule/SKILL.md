@@ -1,7 +1,6 @@
 ---
 name: ditsmod-schedule
 description: 'Scheduling tasks in Ditsmod with @ditsmod/schedule: @cron / @interval / @timeout decorators, CronExpression enum, CronOptions, SchedulerRegistry (query/start/stop/delete tasks at runtime), ScheduleModule setup, provider scope constraints (only providersPerMod / providersPerApp), graceful shutdown behavior, and dynamic task management patterns.'
-compatibility: Ditsmod project with @ditsmod/core >=3.0. Node.js >=24.
 ---
 
 # Ditsmod Schedule
@@ -116,12 +115,16 @@ Runs the method on a cron schedule. Uses the [`cron`](https://www.npmjs.com/pack
 
 ---
 
-### `@interval(nameOrTimeout, timeout?)`
+### `@interval(nameOrTimeout: string | number, timeout?: number)`
 
-Runs the method repeatedly every `timeout` milliseconds via `setInterval`.
+Runs the method repeatedly every `timeout` milliseconds via `setInterval`. If only `nameOrTimeout` is provided as a number, it acts as the timeout (anonymous task).
 
 ```ts
 // Signature overloads:
+@interval(timeout: number)
+@interval(name: string, timeout: number)
+
+// Usage examples:
 @interval(3000)                  // anonymous, fires every 3 s
 @interval('cache-refresh', 3000) // named, fires every 3 s
 ```
@@ -131,11 +134,16 @@ Runs the method repeatedly every `timeout` milliseconds via `setInterval`.
 
 ---
 
-### `@timeout(nameOrTimeout, timeout?)`
+### `@timeout(nameOrTimeout: string | number, timeout?: number)`
 
-Runs the method **once** after `timeout` milliseconds via `setTimeout`.
+Runs the method **once** after `timeout` milliseconds via `setTimeout`. If only `nameOrTimeout` is provided as a number, it acts as the timeout (anonymous task).
 
 ```ts
+// Signature overloads:
+@timeout(timeout: number)
+@timeout(name: string, timeout: number)
+
+// Usage examples:
 @timeout(5_000)                   // anonymous, fires once after 5 s
 @timeout('startup-warmup', 5_000) // named
 ```
@@ -245,6 +253,22 @@ export class TaskManagerService {
 
 > [!TIP]
 > Always call `doesExist()` before `getCronJob()` / `getInterval()` / `getTimeout()` when the existence of the task is not guaranteed — the getters throw an `Error` if the name is not found.
+
+#### Programmatic Task Registration Example
+
+If you need to dynamically create and register a task at runtime (rather than using class decorators):
+
+```ts
+import { CronJob } from 'cron';
+import { SchedulerRegistry } from '@ditsmod/schedule';
+
+// Inside a service or controller method:
+const customJob = new CronJob('* * * * *', () => {
+  console.log('Running programmatic cron job...');
+});
+this.registry.addCronJob('dynamic-cron', customJob);
+customJob.start();
+```
 
 ---
 

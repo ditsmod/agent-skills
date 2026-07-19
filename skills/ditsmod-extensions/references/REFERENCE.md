@@ -179,11 +179,11 @@ When `delay` is `false` on the cross-module call, the returned object has `group
 
 ## Error Types
 
-| Error class                       | When thrown                                                                                  |
-| --------------------------------- | -------------------------------------------------------------------------------------------- |
-| `UndeclaredExtensionDependency`   | Extension A called `extensionManager.stage1(B)` but B is not listed in A's `afterExtensions` |
-| `CyclicExtensions`                | A cycle was detected in the extension dependency graph                                       |
-| `ExtensionExecutionFailure`       | Any unhandled error thrown inside an extension's stage method                                |
+| Error class                     | When thrown                                                                                  |
+| ------------------------------- | -------------------------------------------------------------------------------------------- |
+| `UndeclaredExtensionDependency` | Extension A called `extensionManager.stage1(B)` but B is not listed in A's `afterExtensions` |
+| `CyclicExtensions`              | A cycle was detected in the extension dependency graph                                       |
+| `ExtensionExecutionFailure`     | Any unhandled error thrown inside an extension's stage method                                |
 
 The full dependency chain is included in the error message.
 

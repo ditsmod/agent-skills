@@ -1,7 +1,6 @@
 ---
 name: ditsmod-extensions
 description: Practical guidance for creating, registering, ordering, exporting, grouping, and overriding Ditsmod extensions. Use when writing custom extensions with stage1/stage2/stage3 hooks, injecting ExtensionManager to retrieve same-module or app-wide data (handling delay), dynamically registering providers, configuring module extensions metadata, or resolving cyclic extension dependencies.
-compatibility: Ditsmod project with @ditsmod/core >=3.0. Node.js >=24.
 ---
 
 # Ditsmod Extensions
@@ -18,7 +17,7 @@ Extensions run **after** Ditsmod collects static metadata from decorators but **
 
 ## Implementing An Extension
 
-An extension is a class decorated with `@injectable()` that implements the `Extension<T>` interface. All three stage methods are **optional** — implement only the stages you need. 
+An extension is a class decorated with `@injectable()` that implements the `Extension<T>` interface. All three stage methods are **optional** — implement only the stages you need.
 
 > [!IMPORTANT]
 > The stages `stage1`, `stage2`, and `stage3` are framework lifecycle hooks that are **always executed sequentially** in that order during the application bootstrap process. They are never skipped or executed out of order. Therefore, you can rely on state populated in `stage2` (like a module injector instance) to always be available in `stage3`.
@@ -37,7 +36,8 @@ export class MyExtension implements Extension<MyPayload | void> {
   async stage1(isLastModule: boolean): Promise<MyPayload | void> {
     // Stage 1: called once per module while providers are being dynamically collected.
     // isLastModule === true when this is the last module that imports this extension.
-    // Return a payload that other extensions can consume via ExtensionManager.stage1().
+    // Return a payload (e.g., collected metadata) that other extensions can consume
+    // via ExtensionManager.stage1(). Return void if no payload is produced.
   }
 
   async stage2(injectorPerMod: Injector): Promise<void> {
@@ -57,6 +57,11 @@ export class MyExtension implements Extension<MyPayload | void> {
 - The injector for the extension constructor is created **before any extension runs**.
 - You can only inject providers that were **statically** registered (module-level or app-level) before extensions execute.
 - You **cannot** inject providers that are dynamically added by other extensions.
+- Key tokens available for injection in constructors include:
+  - `ExtensionManager` (to run/depend on other extensions)
+  - `PROVIDERS_PER_APP` (token to retrieve statically registered app-level providers)
+  - `PROVIDERS_PER_MOD` (token to retrieve statically registered module-level providers)
+  - Class tokens of other statically registered modules/services
 - The extension and application injectors belong to separate hierarchy trees. The extension injector is short-lived and destroyed once the extensions finish initializing. Because any providers instantiated within the extension's constructor belong to this temporary injector, they are not shared with the main application.
 
 ### `isLastModule` Parameter
@@ -220,6 +225,9 @@ Extensions can dynamically push into provider arrays that are still being assemb
 
 ### Typical Pattern: Reading Config, Pushing Interceptors
 
+> [!IMPORTANT]
+> If you need to read statically declared module-level configuration in `stage1`, you must build a temporary injector. This requires injecting the `PROVIDERS_PER_APP` array in the constructor via `@inject(PROVIDERS_PER_APP)` so you can resolve it.
+
 ```ts
 async stage1(): Promise<void> {
   const meta = await this.extensionManager.stage1(RestRouteExtension);
@@ -228,7 +236,7 @@ async stage1(): Promise<void> {
     const { providersPerMod } = routeExtensionMeta.normalizedModuleMeta;
 
     routeExtensionMeta.aControllerMetadata.forEach(({ providersPerReq }) => {
-      // Build a temporary injector (this.providersPerApp must be injected via @inject(PROVIDERS_PER_APP) in constructor)
+      // Build a temporary injector
       const injectorPerApp = Injector.resolveAndCreate(this.providersPerApp, 'App');
       const injectorPerMod  = injectorPerApp.resolveAndCreateChild(providersPerMod);
       const config = injectorPerMod.get(MyConfig, null);
@@ -272,7 +280,7 @@ Always ensure your extension is ordered **after** the extension that produces th
 | Group data is empty or missing             | Verify `groups: [TargetExtension]` uses the correct class token                                              |
 | `groupDataPerApp` is incomplete            | Ensure `this` is passed as second arg to `extensionManager.stage1()` and `delay` is handled                  |
 | Circular dependency error                  | Check the error log — `ExtensionManager` prints the full loop path; use `afterExtensions` to break the cycle |
-| `UndeclaredExtensionDependency` error       | Extension A called `extensionManager.stage1(B)` but B was not listed in A's `afterExtensions`                |
+| `UndeclaredExtensionDependency` error      | Extension A called `extensionManager.stage1(B)` but B was not listed in A's `afterExtensions`                |
 
 ---
 
