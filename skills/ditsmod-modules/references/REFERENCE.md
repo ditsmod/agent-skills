@@ -234,12 +234,12 @@ When creating a substitute decorator (with `'root'` or `'feature'` role) using `
 
 Separating the decorator's metadata definition from the host feature module is necessary to avoid circular dependencies (decorating the host module with itself would create an import loop):
 
-1. Create a standard feature module (e.g. `MyCoreModule`) containing all necessary providers, middlewares, and extensions.
-2. In your custom `InitHooks` subclass, specify `override hostModule = MyCoreModule`.
+1. Create a standard feature module (e.g. `MyLibModule`) containing all necessary providers, middlewares, and extensions.
+2. In your custom `InitHooks` subclass, specify `override hostModule = MyLibModule`.
 3. Create the base modifier decorator (e.g. `initMy`) which serves as the group parent decorator.
 4. Create the transformer function that returns the hooks instance and sets `hooks.moduleRole = 'feature'` (or `'root'`).
 5. Create the substitute custom decorator (e.g. `myFeatureModule`) using `Reflector.makeClassDecorator()`, passing the transformer as the first argument, its name as the second, and the base modifier decorator (`initMy`) as the third argument (the parent).
-6. When developers apply this substitute decorator (e.g. `@myFeatureModule`), the framework recognizes it as a module decorator (requiring only one decorator on the class instead of two) and automatically imports `MyCoreModule`.
+6. When developers apply this substitute decorator (e.g. `@myFeatureModule`), the framework recognizes it as a module decorator (requiring only one decorator on the class instead of two) and automatically imports `MyLibModule`.
 
 Example:
 
@@ -251,11 +251,11 @@ import { featureModule, InitHooks, Reflector } from '@ditsmod/core';
   providersPerReq: [MyService],
   exports: [MyService],
 })
-export class MyCoreModule {}
+export class MyLibModule {}
 
 // 2. Custom hooks setting hostModule
 class MyInitHooks extends InitHooks {
-  override hostModule = MyCoreModule;
+  override hostModule = MyLibModule;
 }
 
 // 3. Creating the base modifier decorator (serves as the group parent)
@@ -271,7 +271,7 @@ function transformFeatureMeta(data?: any) {
 // 5. Creating the substitute decorator, passing initMy as the 3rd argument
 export const myFeatureModule = Reflector.makeClassDecorator(transformFeatureMeta, 'myFeatureModule', initMy);
 
-// 6. Using only one decorator on the class (automatically imports MyCoreModule)
+// 6. Using only one decorator on the class (automatically imports MyLibModule)
 @myFeatureModule()
 export class MyFeatureModule {}
 ```

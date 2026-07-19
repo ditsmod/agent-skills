@@ -24,12 +24,15 @@ An extension is a class decorated with `@injectable()` that implements the `Exte
 > The stages `stage1`, `stage2`, and `stage3` are framework lifecycle hooks that are **always executed sequentially** in that order during the application bootstrap process. They are never skipped or executed out of order. Therefore, you can rely on state populated in `stage2` (like a module injector instance) to always be available in `stage3`.
 
 ```ts
-import { injectable } from '@ditsmod/core';
-import type { Extension, ExtensionManager, Injector } from '@ditsmod/core';
+import { injectable, inject, PROVIDERS_PER_APP } from '@ditsmod/core';
+import type { Extension, ExtensionManager, Injector, Provider } from '@ditsmod/core';
 
 @injectable()
 export class MyExtension implements Extension<MyPayload | void> {
-  constructor(private extensionManager: ExtensionManager) {}
+  constructor(
+    private extensionManager: ExtensionManager,
+    @inject(PROVIDERS_PER_APP) protected providersPerApp: Provider[],
+  ) {}
 
   async stage1(isLastModule: boolean): Promise<MyPayload | void> {
     // Stage 1: called once per module while providers are being dynamically collected.
@@ -225,7 +228,7 @@ async stage1(): Promise<void> {
     const { providersPerMod } = routeExtensionMeta.normalizedModuleMeta;
 
     routeExtensionMeta.aControllerMetadata.forEach(({ providersPerReq }) => {
-      // Build a temporary injector to resolve module-level config
+      // Build a temporary injector (this.providersPerApp must be injected via @inject(PROVIDERS_PER_APP) in constructor)
       const injectorPerApp = Injector.resolveAndCreate(this.providersPerApp, 'App');
       const injectorPerMod  = injectorPerApp.resolveAndCreateChild(providersPerMod);
       const config = injectorPerMod.get(MyConfig, null);

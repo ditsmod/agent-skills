@@ -77,6 +77,21 @@ export class AppModule {}
 
 > **Do not mix** `@ditsmod/rest` and `@ditsmod/trpc` entities in the same application. Check a package's `peerDependencies` to confirm architectural style compatibility.
 
+## Static vs Dynamic Modules
+
+Ditsmod supports importing modules in two forms:
+
+- **Static Module:** A raw class reference (e.g., `SomeModule`). Use this when importing a module with its default, statically declared metadata and providers.
+  ```ts
+  imports: [SomeModule]
+  ```
+- **Dynamic Module:** An object configuration implementing the `DynamicModule` interface (e.g., `{ module: SomeModule, path: 'prefix' }`). Use this when configuration details, route prefixes, or custom provider overrides need to be supplied at the import site. Dynamic modules are often returned by static helper methods (e.g., `SomeModule.withConfig(opts)`).
+  ```ts
+  imports: [
+    { module: SomeModule, providersPerReq: [MyOverrideService] }
+  ]
+  ```
+
 ## Import, Append, Export
 
 **`imports`** — use when the current module needs exported providers or extensions from another module:
@@ -204,6 +219,13 @@ An init decorator can serve three roles:
 
 - A class decorated with a root or feature module init decorator (role `'root'` or `'feature'`) **does not** require standard `@rootModule` or `@featureModule` decorators.
 - A class decorated only with a modifier decorator (role `undefined`) **must** be accompanied by a module decorator (standard or init-based). Otherwise, a `MissingModuleDecorator` error is thrown.
+
+### Parent Init Hooks Propagation
+
+- **Static feature modules:** If a child module is a static class decorated with `@featureModule` (meaning it has no custom init decorators of its own), it automatically inherits the parent module's init hooks (such as `initRest` or `initTrpc`) during scanning.
+  - This inheritance automatically imports the parent init hook's `hostModule` (e.g., `RestModule`) into the child module, ensuring that extensions (like `BodyParserExtension`) do not crash due to missing route/context providers.
+  - **Exception:** This automatic propagation is **skipped** for external modules (meaning modules imported from `node_modules`) to avoid circular imports and missing dependency resolution errors in third-party or framework core modules (like `ContextModule`).
+- **Dynamic feature modules:** Dynamic modules that do not have custom decorators can similarly inherit parent hooks when they are imported, automatically populating their initialization options and importing the corresponding host modules.
 
 For complete guide on creating init decorators, subclassing `InitHooks`, and parameter merging, see [references/REFERENCE.md](references/REFERENCE.md#init-decorators).
 
