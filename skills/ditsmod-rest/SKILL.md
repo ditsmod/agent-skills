@@ -152,22 +152,18 @@ The execution order of HTTP interceptors in the runtime chain is determined by t
 Useful for wrapping the entire routing and execution pipeline inside a tracing context or logger:
 
 ```ts
-import { injectable, Injector, NodeResponse, NodeRequest } from '@ditsmod/core';
-import { RequestDispatcher } from '@ditsmod/rest';
+import { injectable } from '@ditsmod/core';
+import { RequestDispatcher, RawRequest, RawResponse } from '@ditsmod/rest';
 
 @injectable()
 export class CustomRequestDispatcher extends RequestDispatcher {
-  constructor(injector: Injector) {
-    super(injector);
-  }
-
-  override async requestListener(rawReq: NodeRequest, rawRes: NodeResponse) {
+  override async requestListener(rawReq: RawRequest, rawRes: RawResponse) {
     // Add custom wrapper logic here, e.g. OpenTelemetry trace scope wrapping
     console.log(`Incoming request: ${rawReq.method} ${rawReq.url}`);
     await super.requestListener(rawReq, rawRes);
   }
 
-  override sendInternalServerError(rawRes: NodeResponse, err: any) {
+  override sendInternalServerError(rawRes: RawResponse, err: any) {
     console.error('Unhandled server error:', err);
     super.sendInternalServerError(rawRes, err);
   }
@@ -179,16 +175,15 @@ export class CustomRequestDispatcher extends RequestDispatcher {
 Catches exceptions thrown during guard or controller execution:
 
 ```ts
-import { injectable, NodeResponse } from '@ditsmod/core';
+import { injectable } from '@ditsmod/core';
 import { HttpErrorHandler, RequestContext } from '@ditsmod/rest';
 
 @injectable()
 export class CustomHttpErrorHandler implements HttpErrorHandler {
   handleError(err: any, ctx: RequestContext) {
     console.error('Controller execution error:', err);
-    const rawRes = ctx.nodeRes;
-    rawRes.statusCode = err.status || 500;
-    rawRes.end(JSON.stringify({ error: err.message || 'Internal Server Error' }));
+    ctx.rawRes.statusCode = err.status || 500;
+    ctx.sendJson({ error: err.message || 'Internal Server Error' });
   }
 }
 ```
@@ -198,12 +193,13 @@ export class CustomHttpErrorHandler implements HttpErrorHandler {
 Protects routes by returning a boolean or throwing an error:
 
 ```ts
-import { injectable, CanActivate, RequestContext } from '@ditsmod/core';
+import { injectable} from '@ditsmod/core';
+import { CanActivate, RequestContext } from '@ditsmod/rest';
 
 @injectable()
 export class AuthGuard implements CanActivate {
   async canActivate(ctx: RequestContext): Promise<boolean> {
-    const authHeader = ctx.nodeReq.headers.authorization;
+    const authHeader = ctx.rawReq.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       return false; // Blocks route, resulting in 403 Forbidden (or 401 depending on logic)
     }

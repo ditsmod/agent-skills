@@ -214,7 +214,7 @@ export class TaskManagerService {
 
   pauseAndResumeCron(name: string): void {
     const job = this.registry.getCronJob(name); // throws if not found
-    job.stop();
+    void job.stop();
     // ... later:
     job.start();
   }
@@ -260,7 +260,6 @@ If you need to dynamically create and register a task at runtime (rather than us
 
 ```ts
 import { CronJob } from 'cron';
-import { SchedulerRegistry } from '@ditsmod/schedule';
 
 // Inside a service or controller method:
 const customJob = new CronJob('* * * * *', () => {
