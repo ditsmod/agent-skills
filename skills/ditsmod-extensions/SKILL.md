@@ -230,7 +230,7 @@ async stage1(): Promise<void> {
   meta.groupData.forEach((routeExtensionMeta) => {
     const { providersPerMod } = routeExtensionMeta.normalizedModuleMeta;
 
-    routeExtensionMeta.aControllerMetadata.forEach(({ providersPerReq }) => {
+    routeExtensionMeta.aControllerMeta.forEach(({ providersPerReq }) => {
       // Build a temporary injector
       const injectorPerApp = Injector.resolveAndCreate(this.providersPerApp, 'App');
       const injectorPerMod  = injectorPerApp.resolveAndCreateChild(providersPerMod);
