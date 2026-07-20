@@ -9,7 +9,7 @@ description: Practical guidance for creating, registering, ordering, exporting, 
 
 Extensions run **after** Ditsmod collects static metadata from decorators but **before** request handlers are created. Think of them as "infrastructure setup" hooks that operate on the fully assembled module graph.
 
-- Business logic belongs in services, not extensions.
+- Extensions operate strictly during the application initialization stage to set up infrastructure and do not participate directly in request processing.
 - Extensions prepare infrastructure: dynamically add interceptors/providers, build route metadata, set up OpenAPI docs, initialize DB connections.
 - Extensions can be async and depend on each other through `ExtensionManager`.
 
@@ -249,6 +249,33 @@ async stage1(): Promise<void> {
 ```
 
 Always ensure your extension is ordered **after** the extension that produces the metadata (e.g., after `RestRouteExtension`) and **before** the extension that consumes it (e.g., before `DispatcherExtension`).
+
+### Transferring State & Resources to the Application (`ValueProvider`)
+
+Since the extension's internal injector is temporary and destroyed post-bootstrap, any state or runtime resource initialized by an extension (e.g., database connection pools, SDK clients, external service configurations, compiled caches) must be transferred to the application's long-lived DI hierarchy.
+
+To pass a ready object or resource instance to the application:
+1. Initialize or connect to the resource asynchronously inside `stage1()` or `stage2()`.
+2. Push a `ValueProvider` (`{ token: 'some-token', useValue: initializedInstance }`) into the appropriate provider hierarchy array (`providersPerApp`, `providersPerMod`, `providersPerRou`, or `providersPerReq`).
+
+```ts
+@injectable()
+export class DbExtension implements Extension<void> {
+  constructor(
+    @inject(PROVIDERS_PER_APP) protected providersPerApp: Provider[],
+  ) {}
+
+  async stage1(): Promise<void> {
+    // 1. Asynchronously create/initialize the resource during bootstrap
+    const dbClient = await createDbConnection({ /* config */ });
+
+    // 2. Register the existing instance into application DI via ValueProvider
+    this.providersPerApp.push({ token: DbClient, useValue: dbClient });
+  }
+}
+```
+
+Any application service or controller can then inject `DbClient` via standard DI.
 
 ---
 
