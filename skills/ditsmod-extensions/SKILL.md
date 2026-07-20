@@ -55,13 +55,8 @@ export class MyExtension implements Extension<MyPayload | void> {
 ### Constructor Injection Constraints
 
 - The injector for the extension constructor is created **before any extension runs**.
-- You can only inject providers that were **statically** registered (module-level or app-level) before extensions execute.
+- You can only inject providers statically registered (module-level or app-level) before extensions execute, or default extension providers exported via `defaultExtensionProviders` from `@ditsmod/core`.
 - You **cannot** inject providers that are dynamically added by other extensions.
-- Key tokens available for injection in constructors include:
-  - `ExtensionManager` (to run/depend on other extensions)
-  - `PROVIDERS_PER_APP` (token to retrieve statically registered app-level providers)
-  - `PROVIDERS_PER_MOD` (token to retrieve statically registered module-level providers)
-  - Class tokens of other statically registered modules/services
 - The extension and application injectors belong to separate hierarchy trees. The extension injector is short-lived and destroyed once the extensions finish initializing. Because any providers instantiated within the extension's constructor belong to this temporary injector, they are not shared with the main application.
 
 ### `isLastModule` Parameter
