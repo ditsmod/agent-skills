@@ -211,7 +211,10 @@ For the full `ExtensionGroupMeta` type shape, see [references/REFERENCE.md](refe
 
 ## Dynamic Provider Registration
 
-Extensions can dynamically push into provider arrays that are still being assembled.
+Extensions can dynamically push into provider arrays that are still being assembled. Providers can be pushed to:
+1. **Application-level metadata** (`providersPerApp` injected via `@inject(PROVIDERS_PER_APP)`): Affects the entire application across all modules.
+2. **Module-level metadata** (`normalizedModuleMeta.providersPerMod`, `providersPerRou`, `providersPerReq`): Affects the entire current module.
+3. **Controller/Route-level metadata** (`aControllerMeta[i].providersPerRou` or `aControllerMeta[i].providersPerReq`): Affects only the specific controller or route (e.g. selectively adding interceptors as in `BodyParserExtension`).
 
 | Stage    | Allowed provider levels               |
 | -------- | ------------------------------------- |
@@ -230,13 +233,15 @@ async stage1(): Promise<void> {
   meta.groupData.forEach((routeExtensionMeta) => {
     const { providersPerMod } = routeExtensionMeta.normalizedModuleMeta;
 
-    routeExtensionMeta.aControllerMeta.forEach(({ providersPerReq }) => {
-      // Build a temporary injector
+    // Pushing to controller/route-level metadata specifically:
+    routeExtensionMeta.aControllerMeta.forEach(({ providersPerRou, providersPerReq }) => {
+      // Build a temporary injector hierarchy to inspect config
       const injectorPerApp = Injector.resolveAndCreate(this.providersPerApp, 'App');
-      const injectorPerMod  = injectorPerApp.resolveAndCreateChild(providersPerMod);
+      const injectorPerMod = injectorPerApp.resolveAndCreateChild(providersPerMod);
       const config = injectorPerMod.get(MyConfig, null);
 
       if (config?.enableFeature) {
+        // Pushing to individual controller/route providersPerReq array (controller-scoped)
         providersPerReq.push({
           token: HTTP_INTERCEPTORS,
           useClass: MyInterceptor,
