@@ -154,7 +154,7 @@ Tracks how many modules still need to execute each extension/group:
 
 ```ts
 class ExtensionCounters {
-  mExtensions: Map<Provider, number>;
+  extensionsMap: Map<Provider, number>;
 }
 ```
 

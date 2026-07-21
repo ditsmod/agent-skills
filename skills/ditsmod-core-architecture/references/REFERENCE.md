@@ -448,7 +448,7 @@ export class MyFeatureModule {}
 When importing a dynamic module in the context of an init decorator:
 
 1. The dynamic module's custom options (like `path` or `guards`) are merged into the `dynamicModule.initOpts` Map under the init decorator's token.
-2. If `Module1` itself is a plain `@featureModule` (not decorated with `@initRest` or `@restModule`), the framework automatically retrieves the default hook class for the decorator from the application's register, clones it, registers it in the module's `mInitHooks` list, and calls `normalize()`.
+2. If `Module1` itself is a plain `@featureModule` (not decorated with `@initRest` or `@restModule`), the framework automatically retrieves the default hook class for the decorator from the application's register, clones it, registers it in the module's `initHooksMap` list, and calls `normalize()`.
 3. This ensures that custom options (such as REST routing prefixes and route guards) are correctly applied to plain feature modules during import.
 
 ---

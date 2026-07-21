@@ -214,7 +214,7 @@ For the full `ExtensionGroupMeta` type shape, see [references/REFERENCE.md](refe
 Extensions can dynamically push into provider arrays that are still being assembled. Providers can be pushed to:
 1. **Application-level metadata** (`providersPerApp` injected via `@inject(PROVIDERS_PER_APP)`): Affects the entire application across all modules.
 2. **Module-level metadata** (`normalizedModuleMeta.providersPerMod`, `providersPerRou`, `providersPerReq`): Affects the entire current module.
-3. **Controller/Route-level metadata** (`aControllerMeta[i].providersPerRou` or `aControllerMeta[i].providersPerReq`): Affects only the specific controller or route (e.g. selectively adding interceptors as in `BodyParserExtension`).
+3. **Controller/Route-level metadata** (`controllersMeta[i].providersPerRou` or `controllersMeta[i].providersPerReq`): Affects only the specific controller or route (e.g. selectively adding interceptors as in `BodyParserExtension`).
 
 | Stage    | Allowed provider levels               |
 | -------- | ------------------------------------- |
@@ -234,7 +234,7 @@ async stage1(): Promise<void> {
     const { providersPerMod } = routeExtensionMeta.normalizedModuleMeta;
 
     // Pushing to controller/route-level metadata specifically:
-    routeExtensionMeta.aControllerMeta.forEach(({ providersPerRou, providersPerReq }) => {
+    routeExtensionMeta.controllersMeta.forEach(({ providersPerRou, providersPerReq }) => {
       // Build a temporary injector hierarchy to inspect config
       const injectorPerApp = Injector.resolveAndCreate(this.providersPerApp, 'App');
       const injectorPerMod = injectorPerApp.resolveAndCreateChild(providersPerMod);
