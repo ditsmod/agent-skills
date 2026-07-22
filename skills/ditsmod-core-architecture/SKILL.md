@@ -22,17 +22,11 @@ Ditsmod applications have two module roles:
 import { rootModule, featureModule } from '@ditsmod/core';
 
 @featureModule({
-  imports: [], // Modules whose exports this module consumes
-  providersPerApp: [], // Providers registered at application level
-  providersPerMod: [], // Providers registered at module level
-  providersPerRou: [], // Providers registered at route level
-  providersPerReq: [], // Providers registered per HTTP request
-  exports: [], // Tokens or modules exposed to importers
-  extensions: [], // Extensions to run
-  extensionsMeta: {}, // Keyed data consumed by extensions
-  resolvedCollisionsPerMod: [], // Collision resolution at module level
-  resolvedCollisionsPerRou: [], // Collision resolution at route level
-  resolvedCollisionsPerReq: [], // Collision resolution at request level
+  imports: [], // Imported modules
+  providersPerApp: [], providersPerMod: [], providersPerRou: [], providersPerReq: [],
+  exports: [], // Exported tokens or modules
+  extensions: [], extensionsMeta: {},
+  resolvedCollisionsPerMod: [], resolvedCollisionsPerRou: [], resolvedCollisionsPerReq: [],
 })
 export class SomeModule {}
 
@@ -43,38 +37,10 @@ export class SomeModule {}
 export class AppModule {}
 ```
 
-`@ditsmod/rest` and `@ditsmod/trpc` provide their own decorators with extended metadata:
+`@ditsmod/rest` and `@ditsmod/trpc` provide specialized module decorators with extended metadata:
 
-```ts
-import { restRootModule, restModule } from '@ditsmod/rest';
-
-@restModule({
-  // The same list of properties as the 'restRootModule' decorator, except 'resolvedCollisionsPerApp'
-})
-export class SomeModule {}
-
-@restRootModule({
-  // All rootModule properties, plus:
-  appends: [], // Attach a module's controllers without consuming its exports
-  controllers: [], // Register controllers directly on the root module
-})
-export class AppModule {}
-```
-
-```ts
-import { trpcRootModule, trpcModule } from '@ditsmod/trpc';
-
-@trpcModule({
-  // The same list of properties as the 'trpcRootModule' decorator, except 'resolvedCollisionsPerApp'
-})
-export class SomeModule {}
-
-@trpcRootModule({
-  // All rootModule properties, plus:
-  controllers: [], // Register tRPC controllers directly on the root module
-})
-export class AppModule {}
-```
+- **`@restModule` / `@restRootModule`** (`@ditsmod/rest`): Supports all base properties, plus `controllers: []` and `appends: []` (attaches module controllers under route prefixes without consuming provider exports).
+- **`@trpcModule` / `@trpcRootModule`** (`@ditsmod/trpc`): Supports all base properties, plus `controllers: []` (registers tRPC controllers).
 
 > **Do not mix** `@ditsmod/rest` and `@ditsmod/trpc` entities in the same application. Check a package's `peerDependencies` to confirm architectural style compatibility.
 
@@ -188,13 +154,6 @@ export class UsersModule {
     return { module: this, path };
   }
 }
-```
-
-```ts
-@restModule({
-  imports: [UsersModule.withPrefix('users')],
-})
-export class ApiModule {}
 ```
 
 Pass extension-specific data via `extensionsMeta` inside `DynamicModule`. Keep each extension's data under a single dedicated key.
@@ -434,14 +393,10 @@ Always include `...contextProviders` in `Injector.resolveAndCreate()` when using
 ```ts
 import { Context, Injector, ctx, contextProviders, createInjectionSymbol } from '@ditsmod/core';
 
-interface RequestState {
-  userId: string;
-}
-
-const REQUEST_STATE = createInjectionSymbol<RequestState>('REQUEST_STATE');
+const REQUEST_STATE = createInjectionSymbol<{ userId: string }>('REQUEST_STATE');
 
 class Handler {
-  handle(@ctx(REQUEST_STATE) state: RequestState) {
+  handle(@ctx(REQUEST_STATE) state: { userId: string }) {
     return state.userId;
   }
 }
@@ -452,7 +407,7 @@ const injector = Injector.resolveAndCreate([
 ]);
 
 injector.get(Context).set(REQUEST_STATE, { userId: '42' });
-const userId = injector.get('user-id'); // '42'
+injector.get('user-id'); // '42'
 ```
 
 `ctx.get(key)` retrieves a value from the current context instance. `ctx.getInScope(key, injector)` traverses up the injector hierarchy to find the value, useful when Context instances exist at multiple levels.
@@ -461,9 +416,7 @@ const userId = injector.get('user-id'); // '42'
 
 When an `@injectable()` class extends a parent class, DI automatically injects an array of the parent's constructor arguments into the `ParentParams` token.
 
-Three approaches (choose one):
-
-**Option A — `@ts-expect-error` (Recommended, simplest):**
+**Recommended approach (`@ts-expect-error`):**
 
 ```ts
 import { ParentParams, injectable } from '@ditsmod/core/di';
@@ -480,35 +433,7 @@ class Child extends Parent {
 }
 ```
 
-**Option B — `@inject` decorator (type-safe, no suppression):**
-
-```ts
-import { ParentParams, injectable, inject } from '@ditsmod/core/di';
-
-@injectable()
-class Child extends Parent {
-  constructor(
-    @inject(ParentParams) parentParams: ConstructorParameters<typeof Parent>,
-    public childParam1: ChildParam1,
-  ) {
-    super(...parentParams);
-  }
-}
-```
-
-**Option C — inline type assertion (type-safe, no suppression):**
-
-```ts
-@injectable()
-class Child extends Parent {
-  constructor(
-    parentParams: ParentParams,
-    public childParam1: ChildParam1,
-  ) {
-    super(...(parentParams as ConstructorParameters<typeof Parent>));
-  }
-}
-```
+For alternative type-safe options without `@ts-expect-error`, see [ParentParams Alternative Patterns](references/REFERENCE.md#parentparams-alternative-patterns) in `references/REFERENCE.md`.
 
 ### Current Injector & Lazy Loading
 
@@ -516,15 +441,13 @@ A service or controller can access the specific injector instance that instantia
 
 ```ts
 import { injectable, Injector } from '@ditsmod/core';
-import { FirstService } from './first.service.js';
 
 @injectable()
 export class SecondService {
   constructor(private injector: Injector) {}
 
   someMethod() {
-    // FirstService is requested dynamically only when someMethod is called
-    const firstService = this.injector.get(FirstService);
+    const firstService = this.injector.get(FirstService); // Lazily fetched
   }
 }
 ```

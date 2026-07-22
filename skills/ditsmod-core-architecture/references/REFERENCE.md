@@ -139,6 +139,40 @@ Key rules:
 - When a second argument is passed to `@inject()`, **no cache** is created for that dependency — a new instance is created each time.
 - `input` itself can be used as a token in `deps` arrays of function factories.
 
+### ParentParams Alternative Patterns
+
+When extending a parent class in an `@injectable()` class, the recommended approach in `SKILL.md` uses `@ts-expect-error`. If type suppression is not desired, these alternative type-safe approaches can be used:
+
+#### Option B — `@inject` decorator (type-safe, no suppression)
+
+```ts
+import { ParentParams, injectable, inject } from '@ditsmod/core/di';
+
+@injectable()
+class Child extends Parent {
+  constructor(
+    @inject(ParentParams) parentParams: ConstructorParameters<typeof Parent>,
+    public childParam1: ChildParam1,
+  ) {
+    super(...parentParams);
+  }
+}
+```
+
+#### Option C — inline type assertion (type-safe, no suppression)
+
+```ts
+@injectable()
+class Child extends Parent {
+  constructor(
+    parentParams: ParentParams,
+    public childParam1: ChildParam1,
+  ) {
+    super(...(parentParams as ConstructorParameters<typeof Parent>));
+  }
+}
+```
+
 ### Parameter Validation & Transformation (Pipes) via Factory Providers
 
 In Ditsmod, route parameter validation and transformation (analogous to NestJS pipes) can be implemented using custom `FactoryProvider` logic paired with `@input` or the `input` token.
