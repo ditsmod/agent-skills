@@ -2,7 +2,6 @@
 
 This guide contains detailed reference material, API definitions, type shapes, and execution examples for Module, Dependency Injection (DI), and Reflector mechanics. Use it on demand for deep diagnostics, advanced configurations, and integrations.
 
----
 
 ## Part 1: Dependency Injection References
 
@@ -140,7 +139,100 @@ Key rules:
 - When a second argument is passed to `@inject()`, **no cache** is created for that dependency — a new instance is created each time.
 - `input` itself can be used as a token in `deps` arrays of function factories.
 
----
+### Parameter Validation & Transformation (Pipes) via Factory Providers
+
+In Ditsmod, route parameter validation and transformation (analogous to NestJS pipes) can be implemented using custom `FactoryProvider` logic paired with `@input` or the `input` token.
+
+When `@inject(Token, 'paramName')` is used on a controller method parameter:
+1. The second argument (`'paramName'`) is passed to the factory as an `input` parameter.
+2. The DI injector skips caching for this dependency, executing the factory function/method afresh for each injection site.
+3. The custom factory logic (written by the developer) receives `input`, reads raw parameter data from request context (`PATH_PARAMS`, `QUERY_PARAMS`, or `Context`), performs custom validation (throwing `BadRequestError` if invalid), and returns the transformed value.
+
+#### 1. `ClassFactoryProvider` Pipe Pattern
+
+Use an `@injectable()` class with `@factoryMethod()`, receiving context via `@ctx(PATH_PARAMS)` and target property name via `@input`:
+
+```ts
+import { injectable, factoryMethod, inject, ctx, input, AnyObj } from '@ditsmod/core';
+import { controller, route, PATH_PARAMS } from '@ditsmod/rest';
+import { BadRequestError } './errors.js';
+
+interface PostParams {
+  postId: number;
+  commentId: number;
+}
+
+@injectable()
+export class ParseIntParamPipe {
+  @factoryMethod()
+  transform(@ctx(PATH_PARAMS) pathParams: AnyObj, @input paramName: string): number {
+    const rawValue = pathParams?.[paramName];
+    const parsedNumber = Number(rawValue);
+
+    if (rawValue === undefined || Number.isNaN(parsedNumber)) {
+      throw new BadRequestError(`Path parameter "${paramName}" must be a number. Received: "${rawValue}"`);
+    }
+
+    return parsedNumber;
+  }
+}
+
+@controller()
+export class ClassPipeController {
+  @route('GET', 'posts/:postId/comments/:commentId')
+  getComment(
+    @inject<keyof PostParams>(ParseIntParamPipe, 'postId') postId: number,
+    @inject<keyof PostParams>(ParseIntParamPipe, 'commentId') commentId: number,
+  ) {
+    return { postId, commentId };
+  }
+}
+
+// Module registration (providersPerReq):
+// { token: ParseIntParamPipe, useFactory: [ParseIntParamPipe, ParseIntParamPipe.prototype.transform] }
+```
+
+#### 2. `FunctionFactoryProvider` Pipe Pattern
+
+Use a standalone function factory with `deps: [Context, input]`:
+
+```ts
+import { Context, inject, input } from '@ditsmod/core';
+import { controller, route, PATH_PARAMS } from '@ditsmod/rest';
+import { BadRequestError } './errors.js';
+
+interface ProductParams {
+  categoryId: number;
+  productId: number;
+}
+
+export function parseIntParamPipeFn(ctx: Context, paramName: string): number {
+  const pathParams = ctx.get(PATH_PARAMS);
+  const rawValue = pathParams?.[paramName];
+  const parsedNumber = Number(rawValue);
+
+  if (rawValue === undefined || Number.isNaN(parsedNumber)) {
+    throw new BadRequestError(`Path parameter "${paramName}" must be a number. Received: "${rawValue}"`);
+  }
+
+  return parsedNumber;
+}
+
+@controller()
+export class FunctionPipeController {
+  @route('GET', 'categories/:categoryId/products/:productId')
+  getProduct(
+    @inject<keyof ProductParams>(parseIntParamPipeFn, 'categoryId') categoryId: number,
+    @inject<keyof ProductParams>(parseIntParamPipeFn, 'productId') productId: number,
+  ) {
+    return { categoryId, productId };
+  }
+}
+
+// Module registration (providersPerReq):
+// { deps: [Context, input], useFactory: parseIntParamPipeFn }
+```
+
 
 ## Part 2: Module References
 
@@ -290,7 +382,6 @@ This collision can be resolved in one of the following modules: AppModule...
   resolvedCollisionsPerMod: [[LogService, PreferredModule]],
   ```
 
----
 
 ## Part 3: Init Decorators and InitHooks
 
@@ -451,7 +542,6 @@ When importing a dynamic module in the context of an init decorator:
 2. If `Module1` itself is a plain `@featureModule` (not decorated with `@initRest` or `@restModule`), the framework automatically retrieves the default hook class for the decorator from the application's register, clones it, registers it in the module's `initHooksMap` list, and calls `normalize()`.
 3. This ensures that custom options (such as REST routing prefixes and route guards) are correctly applied to plain feature modules during import.
 
----
 
 ## Part 4: Metadata Reflector References
 

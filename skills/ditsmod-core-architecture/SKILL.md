@@ -7,8 +7,6 @@ description: 'Core concepts of Ditsmod architecture: Modules, Dependency Injecti
 
 This skill covers the three fundamental pillars of the Ditsmod framework: the Metadata Reflector, Dependency Injection (DI) and Modules.
 
----
-
 ## Part 1: Modules
 
 ### Choose The Module Type
@@ -270,7 +268,6 @@ These default providers are automatically added to their respective scopes. Howe
 6. When re-exporting `DynamicModule`, export the same object reference that was imported.
 7. Resolve provider token collisions explicitly via `resolvedCollisionsPer*` instead of relying on import order.
 
----
 
 ## Part 2: Dependency Injection
 
@@ -362,6 +359,17 @@ const provider = {
 ```
 
 For function factories, `deps` contains dependency tokens, not providers. Parameter decorators such as `optional`, `fromSelf`, or `skipSelf` are not passed in `deps`; use a class factory provider if those decorators are needed.
+
+#### Parameter Validation & Transformation (Pipes) via Factory Providers
+
+Ditsmod does not require a separate Pipe layer (like NestJS `PipeTransform`). Parameter validation and transformation are implemented inside custom `FactoryProvider` logic, using `@input` (for class factories) or the `input` token in `deps` (for function factories).
+
+Passing an input argument in `@inject(Token, 'paramName')` causes DI to skip caching for that dependency and execute the factory afresh on each injection site. The developer's factory code then extracts raw request data, validates it, and returns the parsed result:
+
+- **`ClassFactoryProvider` Pipe:** `@injectable()` class with `@factoryMethod()`, receiving request context via `@ctx(...)` and parameter name via `@input`.
+- **`FunctionFactoryProvider` Pipe:** Function provider with `deps: [Context, input]`.
+
+See [Parameter Validation & Transformation (Pipes)](references/REFERENCE.md#parameter-validation--transformation-pipes-via-factory-providers) in `references/REFERENCE.md` for full implementation details.
 
 ### Injector Hierarchy
 
@@ -530,7 +538,6 @@ export class SecondService {
 - Use `@fromSelf()` to force lookup only in the injector creating the current value.
 - Use `@skipSelf()` to start lookup from the parent injector.
 
----
 
 ## Part 3: Metadata Reflector
 
@@ -565,7 +572,6 @@ For reflection metadata to work, ensure these requirements are met:
 
 For details on creating custom decorators, collecting metadata, inheritance chains, and programmatic metadata writing, see [references/REFERENCE.md](references/REFERENCE.md#part-4-metadata-reflector-references).
 
----
 
 ## Core Debugging & Troubleshooting Checklists
 
