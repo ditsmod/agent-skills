@@ -1,6 +1,6 @@
 ---
 name: ditsmod-rest
-description: Detailed workflow/lifecycle of HTTP requests in a Ditsmod REST application (@ditsmod/rest / RestModule). Covers requestListener, RequestDispatcher, Router, HttpFrontend, GuardedInterceptor, HTTP_INTERCEPTORS, HttpBackend, error handling flow, and customization entry points (overriding RequestDispatcher).
+description: Detailed workflow/lifecycle of HTTP requests in a Ditsmod REST application (@ditsmod/rest / RestModule). Covers requestListener, RequestDispatcher, Router, HttpFrontend, GuardedInterceptor, HTTP_INTERCEPTORS, HttpBackend, route-level interceptors via @route(), error handling flow, and customization entry points (overriding RequestDispatcher).
 ---
 
 # Ditsmod REST Request Lifecycle & Workflow
@@ -102,6 +102,7 @@ Once a route is matched, Ditsmod executes the route's interceptor chain configur
    - _Role:_ Iterates over all registered guards (`CanActivate`). If any guard returns `false` or throws, it stops execution and throws a `CustomError` (e.g., `401 Unauthorized` or `403 Forbidden`).
 3. **Custom `HTTP_INTERCEPTORS`**
    - Registered by the user or other modules (e.g., `@ditsmod/body-parser`, custom logging interceptors).
+   - Can also be registered per-route by passing an array of `HttpInterceptor` classes as the 4th parameter of `@route()` (`@route(httpMethod, path, guards, interceptors)`). `InterceptorExtension` extracts these during application setup (`stage1`) and automatically registers them into `HTTP_INTERCEPTORS` for that route (in `providersPerRou` or `providersPerReq` based on controller scope).
 4. **`HttpBackend`**
    - The terminal handler in the chain. It instantiates the target controller (if request-scoped) and calls the bound route method.
 
@@ -142,6 +143,10 @@ The execution order of HTTP interceptors in the runtime chain is determined by t
 3. **Capture Errors in Dispatcher:**
    - When overriding `RequestDispatcher`, remember that `super.requestListener` catches downstream controller errors internally and calls `sendInternalServerError()`.
    - To capture and report these exceptions, you must also override the `sendInternalServerError(rawRes, err)` method.
+4. **Passing Route-Level Interceptors in `@route()`:**
+   - `@route()` decorator signature: `@route(httpMethod, path?, guards?, interceptors?)`.
+   - The 4th argument accepts an array of `HttpInterceptor` classes: `Class<HttpInterceptor>[]`.
+   - `InterceptorExtension` processes this argument during bootstrap (`stage1`) and automatically registers each interceptor as a multi-provider for `HTTP_INTERCEPTORS` in `providersPerRou` (for route-scoped controllers) or `providersPerReq` (for request-scoped controllers).
 
 ---
 
@@ -204,6 +209,31 @@ export class AuthGuard implements CanActivate {
       return false; // Blocks route, resulting in 403 Forbidden (or 401 depending on logic)
     }
     return true;
+  }
+}
+```
+
+### 4. Route-level Interceptors via `@route()` Decorator
+
+Passing interceptors directly in the `@route()` decorator (4th argument):
+
+```ts
+import { injectable } from '@ditsmod/core';
+import { controller, route, HttpInterceptor, HttpHandler, RequestContext } from '@ditsmod/rest';
+
+@injectable()
+export class CustomRouteInterceptor implements HttpInterceptor {
+  async intercept(next: HttpHandler, ctx: RequestContext) {
+    console.log('Executing route-level interceptor');
+    return next.handle();
+  }
+}
+
+@controller()
+export class MyController {
+  @route('GET', 'some-path', [], [CustomRouteInterceptor])
+  method() {
+    return 'Hello World';
   }
 }
 ```
