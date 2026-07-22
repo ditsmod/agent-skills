@@ -189,7 +189,7 @@ Use an `@injectable()` class with `@factoryMethod()`, receiving context via `@ct
 ```ts
 import { injectable, factoryMethod, inject, ctx, input, AnyObj } from '@ditsmod/core';
 import { controller, route, PATH_PARAMS } from '@ditsmod/rest';
-import { BadRequestError } './errors.js';
+import { BadRequestError } from './errors.js';
 
 interface PostParams {
   postId: number;
@@ -233,7 +233,7 @@ Use a standalone function factory with `deps: [Context, input]`:
 ```ts
 import { Context, inject, input } from '@ditsmod/core';
 import { controller, route, PATH_PARAMS } from '@ditsmod/rest';
-import { BadRequestError } './errors.js';
+import { BadRequestError } from './errors.js';
 
 interface ProductParams {
   categoryId: number;
@@ -912,4 +912,117 @@ CustomReflector.setPropertyMeta(
   'GET',
   'hello', // decorator arguments
 );
+```
+
+## Part 5: Application Lifecycle & Shutdown References
+
+### `BaseApplication` Shutdown Sequence
+
+When `app.close(signal)` is called (manually or via intercepted process signal), `BaseApplication` executes the following sequence:
+
+```
+[Signal / app.close()]
+          │
+          ▼
+1. isShuttingDown = true & cleanShutdownListeners()
+          │
+          ▼
+2. Gather instantiated singletons from injectorPerApp & module injectors
+          │
+          ▼
+3. Run BeforeShutdown hooks (runShutdownHooks: 'beforeShutdown')
+          │
+          ▼
+4. Execute customShutdown(signal) (overridden by RestApplication, custom apps)
+          │
+          ▼
+5. Run OnShutdown hooks (runShutdownHooks: 'onShutdown')
+          │
+          ▼
+6. Flush logs & process.exit(0) (if signal present)
+```
+
+### Service Shutdown Hooks Example (`BeforeShutdown` & `OnShutdown`)
+
+```ts
+import { BeforeShutdown, OnShutdown, injectable } from '@ditsmod/core';
+
+@injectable()
+export class DatabaseService implements BeforeShutdown, OnShutdown {
+  beforeShutdown(signal?: string) {
+    console.log(`Received signal ${signal}. Stopping background jobs...`);
+  }
+
+  async onShutdown(signal?: string) {
+    console.log('Closing database connection pool...');
+    await this.pool.end();
+  }
+}
+```
+
+### Overriding `customShutdown` in Subclasses
+
+`customShutdown(signal?: string)` is a protected extension method in `BaseApplication` designed for package-level application classes (`RestApplication`, gRPC/WebSocket wrappers) to perform custom resource cleanup between `beforeShutdown` and `onShutdown` hooks.
+
+#### Implementation in `@ditsmod/rest`:
+
+```ts
+export class RestApplication extends BaseApplication {
+  protected override async customShutdown(signal?: string): Promise<void> {
+    if (this.server) {
+      await new Promise<void>((resolve, reject) => {
+        // Stops receiving new connections and drains active sockets
+        this.server.close((err) => (err ? reject(err) : resolve()));
+      });
+    }
+  }
+}
+```
+
+#### Custom Application Subclass Example:
+
+```ts
+import { BaseApplication } from '@ditsmod/core';
+
+export class CustomApp extends BaseApplication {
+  protected override async customShutdown(signal?: string): Promise<void> {
+    // Custom framework/package level cleanup (e.g. stopping gRPC server, flushing telemetry)
+    await this.myCustomServer.stop();
+  }
+}
+```
+
+### Active Instance Discovery Mechanics
+
+`getActiveInstances()` scans:
+1. `this.injectorPerApp` (Application scope injector).
+2. All module-level injectors from `this.moduleManager.getInjectorsPerMod().values()`.
+
+It retrieves instantiated singleton instances via `injector.getInstances()`. Services registered in `providersPerReq` or `providersPerRou` or singletons that were never instantiated during the app runtime are excluded.
+
+### Error Handling in Shutdown Hooks
+
+`runShutdownHooks` executes all matching hooks concurrently using `Promise.allSettled()`:
+
+```ts
+protected async runShutdownHooks(
+  instances: any[],
+  hookName: 'beforeShutdown' | 'onShutdown',
+  signal?: string,
+): Promise<void> {
+  const hooks = instances
+    .filter((instance) => instance && typeof instance[hookName] == 'function')
+    .map(async (instance) => instance[hookName](signal));
+
+  const results = await Promise.allSettled(hooks);
+  results.forEach((result) => {
+    if (result.status == 'rejected') {
+      this.log.shutdownError(this, hookName, result.reason);
+    }
+  });
+}
+```
+
+Errors thrown in `beforeShutdown` or `onShutdown` methods do not interrupt other services' shutdown hooks; they are logged via `this.log.shutdownError()`.
+
 ```

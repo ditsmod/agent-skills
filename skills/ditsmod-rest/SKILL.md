@@ -236,4 +236,17 @@ export class MyController {
     return 'Hello World';
   }
 }
+
+---
+
+## Server Shutdown & Graceful Connection Draining
+
+When graceful shutdown is enabled (`app.enableShutdownHooks()`):
+1. **`BeforeShutdown`** hooks are called across active singleton services.
+2. `RestApplication` initiates HTTP server closure (`server.close()`), stopping new TCP connections and destroying idle keep-alive connections.
+3. Active in-flight requests are allowed up to `shutdownTimeout` (configured via `AppOptions` in `providersPerApp`, default: 15,000 ms) to finish processing before being forcibly closed.
+4. **`OnShutdown`** hooks are called after the HTTP server has completely closed.
+
+For general details on Ditsmod application lifecycle hooks, see the [ditsmod-core-architecture](../ditsmod-core-architecture/SKILL.md#part-4-application-lifecycle--graceful-shutdown) skill.
+
 ```

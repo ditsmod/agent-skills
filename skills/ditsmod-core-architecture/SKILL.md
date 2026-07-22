@@ -1,6 +1,6 @@
 ---
 name: ditsmod-core-architecture
-description: 'Core concepts of Ditsmod architecture: Modules, Dependency Injection, and the Metadata Reflector. Guidance on module composition, DI hierarchies, providers, scopes, and custom decorator design.'
+description: 'Core concepts of Ditsmod architecture: Modules, Dependency Injection, Metadata Reflector, and Application Lifecycle & Graceful Shutdown. Guidance on module composition, DI hierarchies, providers, scopes, and custom decorator design.'
 ---
 
 # Ditsmod Core Architecture
@@ -110,13 +110,13 @@ export class AuthModule {}
 
 Export only what consumer modules inject directly. Internal implementation services do not need to be exported unless consumers inject them. Do not export controllers — exports apply only to providers and modules.
 
-#### Exporting and Re-Exporting from the Root Module
+#### Exporting & Re-Exporting from the Root Module (`AppModule`)
 
-Exporting providers or re-exporting modules from the root module (`AppModule`) is a special capability in Ditsmod:
+The root module (`AppModule`) has a unique global propagation capability:
 
-- Any providers listed in `providersPerMod`, `providersPerRou`, or `providersPerReq` of the root module that are also added to its `exports` will be automatically imported into **all other application modules** (at their respective levels: module, route, or request).
-- Similarly, if `AppModule` re-exports other modules (by listing them in both `imports` and `exports`), their exported providers/extensions will also be automatically imported into **all other application modules**.
-- **Crucial nuance:** These exported/re-exported providers and modules will **not** be added to external modules (those imported from `node_modules`). This makes it a clean way to share providers and modules across all local feature modules without polluting third-party packages.
+- **Declared Providers:** Any providers registered in `AppModule` (`providersPerMod`, `providersPerRou`, or `providersPerReq`) that are also listed in `AppModule`'s `exports` array are automatically imported into **all local feature modules**.
+- **Re-Exported Modules:** Any modules listed in both `imports` and `exports` of `AppModule` have their exported providers and extensions automatically imported into **all local feature modules**.
+- **Nuance:** This automatic propagation applies exclusively to local feature modules (it excludes third-party modules imported from `node_modules`).
 
 ### Re-Export Modules
 
@@ -198,35 +198,16 @@ Match the `resolvedCollisionsPer*` array to the provider scope level named in th
 - **Feature module resolution:** Collisions at module, route, or request levels (`resolvedCollisionsPerMod`, `resolvedCollisionsPerRou`, `resolvedCollisionsPerReq`) must be resolved in whichever importing module encounters the conflict.
 - If the collision originates from modules re-exported by a third-party package's root module, remove the conflicting re-exported module from the package root and import it explicitly where needed.
 
-#### Default Providers and Collisions
+- Default providers exported by `@ditsmod/*` packages (e.g., `Logger`, `ModuleInfo`) are registered automatically. Do not export default providers from feature modules unless explicitly overriding them, to avoid token collisions.
 
-Every `@ditsmod/*` package can define and export default provider arrays configured for different scopes (for example, `@ditsmod/core` exports `defaultProvidersPerApp` which includes `Logger`, `SystemLogMediator`, etc., and `defaultProvidersPerMod` which includes `ModuleInfo`).
-
-These default providers are automatically added to their respective scopes. However, when exporting providers or modules, conflicts can arise:
-
-- If multiple imported modules export different providers for the same default tokens (e.g., conflicting definitions of `Logger` or `ModuleInfo`), a token collision occurs.
-- Avoid exporting default providers from your modules unless you are explicitly overriding them.
-- If a collision occurs on default tokens, resolve it in the importing module using the corresponding `resolvedCollisionsPer*` metadata.
-
-### Common Mistakes
-
-- **Exporting controller classes** — controllers are not providers; only export injectable service tokens and modules.
-- **Exporting `providersPerApp` providers** — they are registered at the application level and globally inherited; exporting them explicitly throws a `ForbiddenAppExport` validation error.
-- **Exporting a new `DynamicModule` literal on re-export** — always reuse the same object reference that was passed to `imports`.
-- **Using `appends` for provider consumption** — `appends` only mounts controllers; it does not make the appended module's providers available.
-- **Expecting cross-module instance sharing at mod/rou/req level** — each module that declares a provider gets its own instance; use `providersPerApp` for true singletons.
-- **Omitting `path` in `imports` when controllers must be mounted** — without `path`, controllers from the imported module are not mounted even if the module has them.
-
-### Module Assembly Checklist
+### Module Assembly Checklist & Common Mistakes
 
 1. Keep each feature module narrowly specialized.
 2. Use `imports` for provider/extension consumption; use `appends` for route attachment only.
-3. Export tokens or modules — not provider objects.
+3. Export tokens or modules — not provider objects or controller classes (exporting controllers or `providersPerApp` causes validation errors).
 4. Use `getTokens()` when exporting tokens from an array that contains object-form providers.
-5. Use `DynamicModule` static methods for reusable parameterized imports.
-6. When re-exporting `DynamicModule`, export the same object reference that was imported.
-7. Resolve provider token collisions explicitly via `resolvedCollisionsPer*` instead of relying on import order.
-
+5. Reuse the identical `DynamicModule` object reference when re-exporting.
+6. Resolve provider collisions explicitly via `resolvedCollisionsPer*` matching the provider scope level.
 
 ## Part 2: Dependency Injection
 
@@ -289,46 +270,38 @@ A `TokenProvider` creates an alias to another token. It is **not self-sufficient
 
 ### Factory Providers
 
-Prefer class factory providers when the factory needs decorated parameters or better encapsulation:
+- `ClassFactoryProvider`: Use when the factory method needs decorated parameters (`@inject`, `@optional`, `@ctx`, `@input`). The factory class must use `@factoryMethod()` on the target method:
 
-```ts
-import { factoryMethod } from '@ditsmod/core';
+  ```ts
+  import { factoryMethod, optional, LoggerConfig, Logger } from '@ditsmod/core';
 
-class ConfigFactory {
-  @factoryMethod()
-  createConfig() {
-    return { level: 'debug' };
+  class PatchLogger {
+    @factoryMethod()
+    patchLogger(@optional() rawConfig?: LoggerConfig) {
+      // ...
+      return pino(config);
+    }
   }
-}
 
-const provider = {
-  token: LOGGER_CONFIG,
-  useFactory: [ConfigFactory, ConfigFactory.prototype.createConfig],
-};
-```
+  const provider = {
+    token: Logger,
+    useFactory: [PatchLogger, PatchLogger.prototype.patchLogger],
+  };
+  ```
 
-Use function factory providers when plain token dependencies are enough:
+- `FunctionFactoryProvider`: Use when plain token dependencies are sufficient. `deps` accepts tokens only (not providers or parameter decorators):
 
 ```ts
 const provider = {
-  token: LOGGER_CONFIG,
-  deps: ['log-level'],
-  useFactory: (level: LoggerConfig['level']) => ({ level }),
+  token: Logger,
+  deps: [LoggerConfig],
+  useFactory: (rawConfig: LoggerConfig) => pino(config),
 };
 ```
 
-For function factories, `deps` contains dependency tokens, not providers. Parameter decorators such as `optional`, `fromSelf`, or `skipSelf` are not passed in `deps`; use a class factory provider if those decorators are needed.
+#### Parameter Validation & Transformation (Pipes)
 
-#### Parameter Validation & Transformation (Pipes) via Factory Providers
-
-Ditsmod does not require a separate Pipe layer (like NestJS `PipeTransform`). Parameter validation and transformation are implemented inside custom `FactoryProvider` logic, using `@input` (for class factories) or the `input` token in `deps` (for function factories).
-
-Passing an input argument in `@inject(Token, 'paramName')` causes DI to skip caching for that dependency and execute the factory afresh on each injection site. The developer's factory code then extracts raw request data, validates it, and returns the parsed result:
-
-- **`ClassFactoryProvider` Pipe:** `@injectable()` class with `@factoryMethod()`, receiving request context via `@ctx(...)` and parameter name via `@input`.
-- **`FunctionFactoryProvider` Pipe:** Function provider with `deps: [Context, input]`.
-
-See [Parameter Validation & Transformation (Pipes)](references/REFERENCE.md#parameter-validation--transformation-pipes-via-factory-providers) in `references/REFERENCE.md` for full implementation details.
+Ditsmod implements parameter validation/transformation inside `FactoryProvider` logic using `@input` (for class factories) or `deps: [Context, input]` (for function factories). Passing input to `@inject(Token, 'paramName')` disables caching and executes the factory afresh for each injection site. See [Parameter Validation & Transformation (Pipes)](references/REFERENCE.md#parameter-validation--transformation-pipes-via-factory-providers) in `references/REFERENCE.md` for full implementation details.
 
 ### Injector Hierarchy
 
@@ -386,31 +359,10 @@ To make one multi-provider entry substitutable, point the multi-provider at a cl
 
 ### Context
 
-Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `createInjectionSymbol<T>()` for typed context keys.
+Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `createInjectionSymbol<T>()` for typed context keys. In modular Ditsmod applications importing `ContextModule` (re-exported by `@ditsmod/rest`), context providers are included automatically.
 
-Always include `...contextProviders` in `Injector.resolveAndCreate()` when using `@ctx()` in class method parameters directly. In modular Ditsmod applications that import `ContextModule` (re-exported by `@ditsmod/rest`), these providers are already available — do not duplicate them.
-
-```ts
-import { Context, Injector, ctx, contextProviders, createInjectionSymbol } from '@ditsmod/core';
-
-const REQUEST_STATE = createInjectionSymbol<{ userId: string }>('REQUEST_STATE');
-
-class Handler {
-  handle(@ctx(REQUEST_STATE) state: { userId: string }) {
-    return state.userId;
-  }
-}
-
-const injector = Injector.resolveAndCreate([
-  ...contextProviders,
-  { token: 'user-id', useFactory: [Handler, Handler.prototype.handle] },
-]);
-
-injector.get(Context).set(REQUEST_STATE, { userId: '42' });
-injector.get('user-id'); // '42'
-```
-
-`ctx.get(key)` retrieves a value from the current context instance. `ctx.getInScope(key, injector)` traverses up the injector hierarchy to find the value, useful when Context instances exist at multiple levels.
+- **`ctx.get(key)`**: Retrieves value from current `Context` instance.
+- **`ctx.getInScope(key, injector)`**: Traverses up the injector hierarchy to find value across nested context instances. See [references/REFERENCE.md](references/REFERENCE.md#contextgetinscope-vs-contextget) for detailed examples.
 
 ### Special Token: ParentParams (Inheritance)
 
@@ -461,14 +413,9 @@ export class SecondService {
 - Use `@fromSelf()` to force lookup only in the injector creating the current value.
 - Use `@skipSelf()` to start lookup from the parent injector.
 
-
 ## Part 3: Metadata Reflector
 
-### Mental Model
-
-Standard JavaScript `Reflect` API (supplemented by `reflect-metadata`) allows storing and retrieving arbitrary metadata keys on classes, properties, or parameters. However, it operates on low-level string keys (e.g., `design:paramtypes`) and does not natively support class inheritance merging or decorator structures.
-
-Ditsmod's `Reflector` provides a unified, cached, and high-level abstraction:
+Ditsmod's `Reflector` provides a unified, cached, and high-level abstraction over standard reflection metadata:
 
 - **Unified Decorators:** It generates type-safe decorators that automatically register metadata in internal registries when evaluated.
 - **Inheritance Traversal:** It merges class, property, and parameter metadata from parent classes down to children.
@@ -495,6 +442,39 @@ For reflection metadata to work, ensure these requirements are met:
 
 For details on creating custom decorators, collecting metadata, inheritance chains, and programmatic metadata writing, see [references/REFERENCE.md](references/REFERENCE.md#part-4-metadata-reflector-references).
 
+## Part 4: Application Lifecycle & Graceful Shutdown
+
+Ditsmod supports graceful shutdown, allowing applications to stop accepting new requests, wait for active requests to finish, and execute resource cleanup in singleton services before exiting cleanly.
+
+### Enabling Process Signal Interception
+
+Graceful shutdown is activated on the application instance (typically in `main.ts`):
+
+```ts
+import { RestApplication } from '@ditsmod/rest';
+import { AppModule } from './app/app.module.js';
+
+const app = await RestApplication.create(AppModule);
+app.enableShutdownHooks(); // Intercepts default signals: SIGTERM, SIGINT, SIGHUP, SIGUSR2, SIGQUIT
+app.server.listen(3000, '0.0.0.0');
+```
+
+You can optionally supply a custom array of signals: `app.enableShutdownHooks(['SIGTERM', 'SIGINT'])`.
+
+### Shutdown Execution Sequence & `customShutdown`
+
+When `app.close(signal)` is called (via signal or manually), `BaseApplication` executes a 3-step sequence:
+
+1. **`BeforeShutdown` hooks:** Calls `beforeShutdown(signal?: string)` on instantiated singletons (`providersPerApp` / `providersPerMod`). Ideal for stopping background timers or queue workers.
+2. **`customShutdown(signal?: string)`:** Extension point method in `BaseApplication`. Subclasses like `RestApplication` override this to perform package-level shutdown logic (e.g. calling `server.close()`, destroying idle sockets, and waiting up to `shutdownTimeout` for active HTTP requests to drain). Custom application classes (e.g. for gRPC or WebSockets) can also override `customShutdown()` to handle package-specific server stopping.
+3. **`OnShutdown` hooks:** Calls `onShutdown(signal?: string)` on instantiated singletons (`providersPerApp` / `providersPerMod`). Ideal for closing database connection pools, Redis clients, or file handles.
+
+### Shutdown Execution Mechanics & Nuances
+
+- **Instantiated Singletons Only:** Shutdown hooks are invoked only on singleton instances (`providersPerApp` and `providersPerMod`) that were actually **instantiated** during application runtime. Uninstantiated services or request-scoped providers (`providersPerReq`, `providersPerRou`) do not receive shutdown hooks.
+- **Concurrent Execution:** `runShutdownHooks` executes hooks for all active instances concurrently using `Promise.allSettled()`. Errors thrown in individual hooks are logged via `SystemLogMediator` without preventing other hooks from completing.
+
+For implementation code examples (`BeforeShutdown` / `OnShutdown`), `customShutdown` subclassing patterns, and active instance discovery mechanics, see [references/REFERENCE.md](references/REFERENCE.md#part-5-application-lifecycle--shutdown-references).
 
 ## Core Debugging & Troubleshooting Checklists
 
