@@ -272,11 +272,11 @@ export class FunctionPipeController {
 
 ### Full Module Metadata Shapes
 
-`@ditsmod/core` defines metadata via the `ModuleDecoratorOptions` class (passed to `rootModule` and `featureModule`):
+`@ditsmod/core` defines metadata via the `FeatureModuleOptions` class (passed to `rootModule` and `featureModule`):
 
 ```ts
 // Source: @ditsmod/core — decorators/module-decorator-options.ts
-class ModuleDecoratorOptions<T extends AnyObj = AnyObj> {
+class FeatureModuleOptions<T extends AnyObj = AnyObj> {
   // ModRefId = StaticModule | DynamicModule
   imports?: (ModRefId | ForwardRefFn<StaticModule>)[];
   exports?: any[];
@@ -298,7 +298,7 @@ class ModuleDecoratorOptions<T extends AnyObj = AnyObj> {
 resolvedCollisionsPerApp?: [any, ModRefId | ForwardRefFn<StaticModule>][];
 ```
 
-`@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `ModuleDecoratorOptions`.
+`@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `FeatureModuleOptions`.
 
 ### `DynamicModule` Shape
 
@@ -454,7 +454,7 @@ import {
   DynamicModuleOptions,
   NormalizedInitMeta,
   NormalizedModuleMeta,
-  RootDecoratorOptions,
+  RootModuleOptions,
 } from '@ditsmod/core';
 
 /**
@@ -485,7 +485,7 @@ interface InitDynamicOptions extends DynamicModuleOptions {
  */
 interface InitMeta extends NormalizedInitMeta {
   normalizedModuleMeta: NormalizedModuleMeta;
-  initDecoratorOptions: RootDecoratorOptions;
+  initDecoratorOptions: RootModuleOptions;
 }
 
 function transformInitDecoratorOptions(data?: ExtInitDecorOpts): InitHooks<ExtInitDecorOpts> {
