@@ -277,8 +277,8 @@ export class FunctionPipeController {
 ```ts
 // Source: @ditsmod/core — decorators/module-decorator-options.ts
 class ModuleDecoratorOptions<T extends AnyObj = AnyObj> {
-  // ModRefId = ModuleType | DynamicModule
-  imports?: (ModRefId | ForwardRefFn<ModuleType>)[];
+  // ModRefId = StaticModule | DynamicModule
+  imports?: (ModRefId | ForwardRefFn<StaticModule>)[];
   exports?: any[];
   providersPerApp?: ProviderBuilder | (Provider | ForwardRefFn<Provider>)[];
   providersPerMod?: ProviderBuilder | (Provider | ForwardRefFn<Provider>)[];
@@ -286,16 +286,16 @@ class ModuleDecoratorOptions<T extends AnyObj = AnyObj> {
   providersPerReq?: ProviderBuilder | (Provider | ForwardRefFn<Provider>)[];
   extensions?: (ExtensionConfig | ExtensionClass)[];
   extensionsMeta?: T; // generic — any object shape, not Record<string, unknown>
-  resolvedCollisionsPerMod?: [any, ModRefId | ForwardRefFn<ModuleType>][];
-  resolvedCollisionsPerRou?: [any, ModRefId | ForwardRefFn<ModuleType>][];
-  resolvedCollisionsPerReq?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+  resolvedCollisionsPerMod?: [any, ModRefId | ForwardRefFn<StaticModule>][];
+  resolvedCollisionsPerRou?: [any, ModRefId | ForwardRefFn<StaticModule>][];
+  resolvedCollisionsPerReq?: [any, ModRefId | ForwardRefFn<StaticModule>][];
 }
 ```
 
 `rootModule` adds one more field:
 
 ```ts
-resolvedCollisionsPerApp?: [any, ModRefId | ForwardRefFn<ModuleType>][];
+resolvedCollisionsPerApp?: [any, ModRefId | ForwardRefFn<StaticModule>][];
 ```
 
 `@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `ModuleDecoratorOptions`.
@@ -308,7 +308,7 @@ resolvedCollisionsPerApp?: [any, ModRefId | ForwardRefFn<ModuleType>][];
 // Source: @ditsmod/core — decorators/module-decorator-options.ts
 interface DynamicModuleBase<M extends AnyObj = AnyObj> {
   id?: string; // optional module identity string for disambiguation
-  module: ModuleType<M> | ForwardRefFn<ModuleType<M>>;
+  module: StaticModule<M> | ForwardRefFn<StaticModule<M>>;
 }
 
 interface DynamicModuleOptions<E extends AnyObj = AnyObj> extends Partial<ProvidersByLevel> {
@@ -509,7 +509,7 @@ export class SomeModule {}
 ### `InitHooks` Methods and Properties
 
 - `moduleRole?: 'root' | 'feature'`: Set to `'root'` or `'feature'` to make the init decorator act as a complete module decorator (meaning standard decorators are not required).
-- `hostModule?: ModuleType`: If specified, the module class representing the host module will be automatically imported into any module class decorated with this init decorator.
+- `hostModule?: StaticModule`: If specified, the module class representing the host module will be automatically imported into any module class decorated with this init decorator.
 - `hostDecoratorOptions?: T`: Raw options to pass to the decorator for the host module. When `hostModule` is normalizer-scanned, this allows attaching metadata to the host module class without directly decorating it (avoiding circular imports).
 - `normalize(normalizedModuleMeta)`: Normalizes and validates raw options, returning a normalized metadata object that is saved in `normalizedModuleMeta.initMeta`.
 - `getModulesToScan(meta)`: Returns an array of `ModRefId` modules that should also be scanned (e.g., appended modules in REST).
