@@ -17,7 +17,7 @@ Extensions run **after** Ditsmod collects static metadata from decorators but **
 
 ## Implementing An Extension
 
-An extension is a class decorated with `@injectable()` that implements the `Extension<T>` interface. All three stage methods are **optional** — implement only the stages you need.
+An extension is a class decorated with `@injectable()` that implements the `Extension<T>` interface, where `T` specifies the payload return type of `stage1()` (and no other stage method). All three stage methods are **optional** — implement only the stages you need.
 
 > [!IMPORTANT]
 > The stages `stage1`, `stage2`, and `stage3` are framework lifecycle hooks that are **always executed sequentially** in that order during the application bootstrap process. They are never skipped or executed out of order. Therefore, you can rely on state populated in `stage2` (like a module injector instance) to always be available in `stage3`.
@@ -61,7 +61,7 @@ export class MyExtension implements Extension<MyPayload | void> {
 
 ### `isLastModule` Parameter
 
-`stage1(isLastModule: boolean)` receives `true` only for the final module that imports this extension. Use this flag to defer aggregation work (e.g., finalizing a data structure) until all modules have contributed.
+`stage1(isLastModule: boolean)` receives `true` only for the final module that imports this extension. Use this flag to defer aggregation work (e.g., finalizing a data structure) until all modules that import this extension have contributed.
 
 ### Accessing Extension Metadata (`extensionsMeta`)
 
@@ -213,6 +213,9 @@ For a detailed step-by-step example demonstrating group formation, lead extensio
 
 `ExtensionManager` manages extension dependencies, caches stage1 results, and detects cyclic dependencies.
 
+> [!WARNING]
+> An extension **cannot** request its own `stage1` data via `ExtensionManager.stage1()` (e.g., `await this.extensionManager.stage1(CurrentExtension)` or `await this.extensionManager.stage1(CurrentExtension, this)`). Requesting itself creates a self-referential cyclic dependency and will throw a cyclic dependency error.
+
 Inject it in the constructor:
 
 ```ts
@@ -229,28 +232,31 @@ const meta = await this.extensionManager.stage1(TargetExtension);
 // meta.delay     — always false for same-module calls
 ```
 
+> [!NOTE]
+> If `TargetExtension` is not imported into the current module, this expression will not return data.
+
 ### App-Wide Data (Cross-Module)
 
-Pass `this` as the second argument to receive aggregated data from **all** modules:
+Pass `this` as the second argument to receive aggregated data from modules where `TargetExtension` is registered:
 
 ```ts
 const meta = await this.extensionManager.stage1(TargetExtension, this);
 ```
 
-A separate instance of your extension is created per module. Passing `this` tells the framework to wait until `TargetExtension` has completed stage1 across all modules before resolving.
+A separate instance of your extension is created for each module where it is imported. Passing `this` instructs the framework to accumulate `stage1` data across modules where `TargetExtension` is imported (e.g., if an application has 10 modules and `TargetExtension` is imported in only 2 of them, data is accumulated from those 2 modules).
 
 #### Handling `delay`
 
-When requesting app-wide data you **must** check `meta.delay`. If `true`, not all modules have run yet — return early; the framework will call your extension again later:
+When requesting app-wide data you **must** check `meta.delay`. If `true`, not all modules that import `TargetExtension` have completed `stage1` yet — return early; the framework will call your extension again later:
 
 ```ts
-const meta = await this.extensionManager.stage1(OtherExtension, this);
+const meta = await this.extensionManager.stage1(TargetExtension, this);
 if (meta.delay) {
   return; // not ready yet — framework will re-invoke this extension
 }
 
 // meta.groupDataPerApp: AppExtensionGroupMeta<T>[]
-//   Each entry = result from one module that registered OtherExtension
+//   Each entry = result from one module that registered TargetExtension
 meta.groupDataPerApp.forEach((perModMeta) => {
   // perModMeta.groupData: T[]  — payloads from that module
   perModMeta.groupData.forEach((payload) => {
