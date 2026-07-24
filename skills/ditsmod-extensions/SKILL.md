@@ -12,6 +12,7 @@ Extensions run **after** Ditsmod collects static metadata from decorators but **
 - Extensions operate strictly during the application initialization stage to set up infrastructure and do not participate directly in request processing.
 - Extensions prepare infrastructure: dynamically add interceptors/providers, build route metadata, set up OpenAPI docs, initialize DB connections.
 - Extensions can be async and depend on each other through `ExtensionManager`.
+- **Module Scope**: An extension is instantiated and executed **only in modules where it is explicitly registered** in the `extensions` array (or imported via `export: true` / `exportOnly: true`). It does not automatically execute in modules that do not register or import it.
 
 ---
 
@@ -87,6 +88,9 @@ In all cases, `extensionsMeta` is accessed directly as a property of `normalized
 ## Registering An Extension
 
 Add extensions to the `extensions` array of any module decorator (`@featureModule`, `@restModule`, etc.).
+
+> [!IMPORTANT]
+> Extensions are strictly module-scoped. Registering an extension in a module (including the root module) executes it **only** within that specific module instance, unless it is exported to importing modules using `export: true` or `exportOnly: true`.
 
 ### Direct Class Registration
 
