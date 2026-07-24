@@ -63,6 +63,41 @@ export class MyExtension implements Extension<MyPayload | void> {
 
 `stage1(isLastModule: boolean)` receives `true` only for the final module that imports this extension. Use this flag to defer aggregation work (e.g., finalizing a data structure) until all modules have contributed.
 
+### Accessing Extension Metadata (`extensionsMeta`)
+
+Extension-specific configurations passed via `@featureModule({ extensionsMeta: { ... } })` or dynamic module options (`DynamicModule.withParams({ extensionsMeta: { ... } })`) are normalized by `ModuleNormalizer` into `normalizedModuleMeta.extensionsMeta`.
+
+An extension retrieves `extensionsMeta` from `normalizedModuleMeta` depending on how it receives module metadata:
+
+1. **Via `ResolvedModuleMeta` (or `RestResolvedModuleMeta`)**:
+   When an extension receives resolved module metadata via constructor or method injection (e.g. extending `RestRouteExtension` as in `OpenapiRouteExtension`):
+
+   ```ts
+   // Example from @ditsmod/openapi (openapi-routes.extension.ts):
+   protected override getControllersMetadata(
+     prefixPerApp: string,
+     restResolvedModuleMeta: RestResolvedModuleMeta,
+   ) {
+     const { normalizedModuleMeta } = restResolvedModuleMeta;
+     const oasOptions = normalizedModuleMeta.extensionsMeta.oasOptions as OasOptions;
+     const prefixParams = oasOptions?.parameters;
+     // ...
+   }
+   ```
+
+2. **Via `RouteExtensionMeta` from `ExtensionManager`**:
+   When consuming route metadata produced by `RestRouteExtension` or another lead extension via `ExtensionManager.stage1(RestRouteExtension)`:
+
+   ```ts
+   const meta = await this.extensionManager.stage1(RestRouteExtension);
+   meta.groupData.forEach((routeExtensionMeta) => {
+     const { normalizedModuleMeta } = routeExtensionMeta;
+     const customOptions = normalizedModuleMeta.extensionsMeta.myCustomOptions;
+   });
+   ```
+
+In all cases, `extensionsMeta` is accessed directly as a property of `normalizedModuleMeta` (`normalizedModuleMeta.extensionsMeta`). Keep each extension's metadata stored under its own dedicated key.
+
 ---
 
 ## Registering An Extension

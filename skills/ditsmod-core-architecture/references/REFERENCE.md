@@ -2,7 +2,6 @@
 
 This guide contains detailed reference material, API definitions, type shapes, and execution examples for Module, Dependency Injection (DI), and Reflector mechanics. Use it on demand for deep diagnostics, advanced configurations, and integrations.
 
-
 ## Part 1: Dependency Injection References
 
 ### Reading `Resolution path` Errors
@@ -178,6 +177,7 @@ class Child extends Parent {
 In Ditsmod, route parameter validation and transformation (analogous to NestJS pipes) can be implemented using custom `FactoryProvider` logic paired with `@input` or the `input` token.
 
 When `@inject(Token, 'paramName')` is used on a controller method parameter:
+
 1. The second argument (`'paramName'`) is passed to the factory as an `input` parameter.
 2. The DI injector skips caching for this dependency, executing the factory function/method afresh for each injection site.
 3. The custom factory logic (written by the developer) receives `input`, reads raw parameter data from request context (`PATH_PARAMS`, `QUERY_PARAMS`, or `Context`), performs custom validation (throwing `BadRequestError` if invalid), and returns the transformed value.
@@ -266,7 +266,6 @@ export class FunctionPipeController {
 // Module registration (providersPerReq):
 // { deps: [Context, input], useFactory: parseIntParamPipeFn }
 ```
-
 
 ## Part 2: Module References
 
@@ -383,6 +382,8 @@ Use this decision tree when choosing provider scope:
 
 ### `extensionsMeta` Usage Pattern
 
+**Passing configuration in a module:**
+
 ```ts
 import { type DynamicModule } from '@ditsmod/core';
 import { MY_EXTENSION } from './my.extension.js';
@@ -399,7 +400,21 @@ export class DataModule {
 }
 ```
 
-Extensions receive this data when they process the module's metadata. Keep each extension's data isolated under its own symbol or string key to prevent conflicts between extensions.
+**Accessing configuration in an extension:**
+
+During module normalization, `extensionsMeta` is saved in `normalizedModuleMeta.extensionsMeta`. An extension reads its configuration directly from `normalizedModuleMeta.extensionsMeta`:
+
+```ts
+// 1. From resolved module metadata (e.g. in @ditsmod/openapi's OpenapiRouteExtension):
+const { normalizedModuleMeta } = restResolvedModuleMeta;
+const oasOptions = normalizedModuleMeta.extensionsMeta.oasOptions as OasOptions;
+
+// 2. From route extension metadata via ExtensionManager:
+const { normalizedModuleMeta } = routeExtensionMeta;
+const myConfig = normalizedModuleMeta.extensionsMeta[MY_EXTENSION];
+```
+
+Keep each extension's data isolated under its own symbol or string key to prevent conflicts between extensions.
 
 ### Common Collision Error Message Pattern
 
@@ -415,7 +430,6 @@ This collision can be resolved in one of the following modules: AppModule...
   ```ts
   resolvedCollisionsPerMod: [[LogService, PreferredModule]],
   ```
-
 
 ## Part 3: Init Decorators and InitHooks
 
@@ -575,7 +589,6 @@ When importing a dynamic module in the context of an init decorator:
 1. The dynamic module's custom options (like `path` or `guards`) are merged into the `dynamicModule.initOpts` Map under the init decorator's token.
 2. If `Module1` itself is a plain `@featureModule` (not decorated with `@initRest` or `@restModule`), the framework automatically retrieves the default hook class for the decorator from the application's register, clones it, registers it in the module's `initHooksMap` list, and calls `normalize()`.
 3. This ensures that custom options (such as REST routing prefixes and route guards) are correctly applied to plain feature modules during import.
-
 
 ## Part 4: Metadata Reflector References
 
@@ -995,6 +1008,7 @@ export class CustomApp extends BaseApplication {
 ### Active Instance Discovery Mechanics
 
 `getActiveInstances()` scans:
+
 1. `this.injectorPerApp` (Application scope injector).
 2. All module-level injectors from `this.moduleManager.getInjectorsPerMod().values()`.
 
@@ -1024,5 +1038,7 @@ protected async runShutdownHooks(
 ```
 
 Errors thrown in `beforeShutdown` or `onShutdown` methods do not interrupt other services' shutdown hooks; they are logged via `this.log.shutdownError()`.
+
+```
 
 ```

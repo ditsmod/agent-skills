@@ -23,10 +23,16 @@ import { rootModule, featureModule } from '@ditsmod/core';
 
 @featureModule({
   imports: [], // Imported modules
-  providersPerApp: [], providersPerMod: [], providersPerRou: [], providersPerReq: [],
+  providersPerApp: [],
+  providersPerMod: [],
+  providersPerRou: [],
+  providersPerReq: [],
   exports: [], // Exported tokens or modules
-  extensions: [], extensionsMeta: {},
-  resolvedCollisionsPerMod: [], resolvedCollisionsPerRou: [], resolvedCollisionsPerReq: [],
+  extensions: [],
+  extensionsMeta: {},
+  resolvedCollisionsPerMod: [],
+  resolvedCollisionsPerRou: [],
+  resolvedCollisionsPerReq: [],
 })
 export class SomeModule {}
 
@@ -156,7 +162,7 @@ export class UsersModule {
 }
 ```
 
-Pass extension-specific data via `extensionsMeta` inside `DynamicModule`. Keep each extension's data under a single dedicated key.
+Pass extension-specific data via `extensionsMeta` inside `DynamicModule` or module decorators (`@featureModule`, `@restModule`, etc.). Keep each extension's data under a single dedicated key. During module initialization, `extensionsMeta` is normalized into `normalizedModuleMeta.extensionsMeta`, where extensions can access it (e.g. `const oasOptions = normalizedModuleMeta.extensionsMeta.oasOptions as OasOptions`).
 
 ### Init Decorators
 
