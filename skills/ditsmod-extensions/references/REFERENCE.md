@@ -132,7 +132,45 @@ interface ExtensionConfig3 {
 
 Internally, override is implemented as `{ token: overrideExtension, useClass: extension }`, so all consumers of the original token transparently receive the replacement.
 
----
+## Extension Group Formation & Lead Extension Membership Example
+
+Extension group formation rules apply universally whether an extension joins a single group or multiple groups simultaneously. Any group formed under a lead extension class token includes the lead extension itself plus all member extensions registered with `groups: [LeadExtension]`.
+
+### Initial Group Registration
+
+```ts
+extensions: [
+  { extension: Extension3, groups: [Extension1, Extension2], export: true },
+],
+```
+
+This configuration forms two separate groups:
+
+- **First group** (with `Extension1` as group lead token): contains `Extension1`, `Extension3`
+- **Second group** (with `Extension2` as group lead token): contains `Extension2`, `Extension3`
+
+### Extending Groups
+
+If another extension subsequently registers with the same group tokens in the current or an imported module:
+
+```ts
+extensions: [
+  { extension: Extension4, groups: [Extension1, Extension2], export: true },
+],
+```
+
+The existing groups are expanded:
+
+- **First group** (with `Extension1` as group lead token): contains `Extension1`, `Extension3`, `Extension4`
+- **Second group** (with `Extension2` as group lead token): contains `Extension2`, `Extension3`, `Extension4`
+
+### Querying Groups via `ExtensionManager.stage1()`
+
+```ts
+await this.extensionManager.stage1(Extension1); // Returns groupData from Extension1, Extension3, Extension4
+await this.extensionManager.stage1(Extension2); // Returns groupData from Extension2, Extension3, Extension4
+await this.extensionManager.stage1(Extension3); // Returns groupData ONLY from Extension3
+```
 
 ## `ExtensionsMetaPerApp` Shape
 

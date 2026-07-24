@@ -139,7 +139,7 @@ extensions: [{ extension: MyExtension, overrideExtension: ExternalExtension }];
 
 ## Extension Groups
 
-A group lets multiple extensions contribute data under a single shared token.
+An **extension group** allows multiple extensions to contribute data under the class token of a lead extension. Analogous to HTTP interceptor groups, an extension group represents a specific type of work performed over application metadata.
 
 ```ts
 extensions: [
@@ -151,7 +151,42 @@ extensions: [
 ];
 ```
 
-When another extension calls `extensionManager.stage1(RestRouteExtension)`, it receives the aggregated `groupData` from **both** `RestRouteExtension` and `OpenApiRouteExtension`.
+> [!NOTE]
+> An extension group does **not** require a special token class or dedicated group entity. Any ordinary extension class (such as `RestRouteExtension`) acts as the group token simply when other extensions list it in their `groups` array.
+
+### Key Rules & Requirements for Extension Groups
+
+#### 1. Shared Base Interface Contract (Critical Requirement)
+
+All extensions belonging to a specific group **must** return data from `stage1()` that adheres to a **shared base interface**.
+
+- **Contract Guarantee**: Consumers that call `extensionManager.stage1(LeadExtension)` rely on the base interface shape to safely iterate and process elements in `groupData`.
+- **Extensibility**: Group members can extend the base interface with additional properties (e.g., `OpenApiRouteExtension` returning extended route metadata with OpenAPI schemas), but must **never** narrow or break the base interface contract.
+
+#### 2. Automatic Execution Ordering via Group Membership
+
+When an extension joins a group via `groups: [LeadExtension]`, it automatically inherits the group's positioning relative to other extensions in the execution graph:
+
+- If `LeadExtension` was declared with `beforeExtensions: [TargetExtension]`, any extension joining `groups: [LeadExtension]` is automatically placed in the execution queue **after** `LeadExtension` and **before** `TargetExtension` (for example, since `RestRouteExtension` runs before `DispatcherExtension`, any extension joining `groups: [RestRouteExtension]` will automatically run after `RestRouteExtension` and before `DispatcherExtension`).
+- You do **not** need to explicitly repeat `beforeExtensions: [TargetExtension]` on member extensions. This allows third-party modules to seamlessly integrate into existing extension pipelines without manual ordering configuration.
+
+#### 3. Group Lookup Behavior & Asymmetry in `ExtensionManager`
+
+Calling `extensionManager.stage1()` with an extension class yields different results depending on whether it is queried as a lead extension or as a specific member:
+
+- **Lead Extension (Group) Lookup**: `await extensionManager.stage1(LeadExtension)` returns aggregated `groupData` containing the payload from `LeadExtension` **and** all member extensions registered in its group (`groups: [LeadExtension]`).
+- **Direct Member Lookup**: `await extensionManager.stage1(SpecificMemberExtension)` returns `groupData` containing **only** the payload from `SpecificMemberExtension`.
+- **Index Alignment**: Elements in `groupData` map 1-to-1 by array index to debug entries in `groupDebugMeta`:
+  ```ts
+  groupData[i] === groupDebugMeta[i]?.payload;
+  ```
+
+#### 4. Group Configuration Rules
+
+- **Multiple Groups**: An extension can belong to multiple groups by passing multiple class tokens: `groups: [ExtensionA, ExtensionB]`.
+- **Override Constraint**: If an extension is registered using `overrideExtension`, the `groups` property (along with `beforeExtensions`, `afterExtensions`, `export`, and `exportOnly`) is **not allowed**.
+
+For a detailed step-by-step example demonstrating group formation, lead extension inclusion, and expansion, see [Extension Group Formation & Lead Extension Membership Example](references/REFERENCE.md#extension-group-formation--lead-extension-membership-example).
 
 ---
 
@@ -212,6 +247,7 @@ For the full `ExtensionGroupMeta` type shape, see [references/REFERENCE.md](refe
 ## Dynamic Provider Registration
 
 Extensions can dynamically push into provider arrays that are still being assembled. Providers can be pushed to:
+
 1. **Application-level metadata** (`providersPerApp` injected via `@inject(PROVIDERS_PER_APP)`): Affects the entire application across all modules.
 2. **Module-level metadata** (`normalizedModuleMeta.providersPerMod`, `providersPerRou`, `providersPerReq`): Affects the entire current module.
 3. **Controller/Route-level metadata** (`controllersMeta[i].providersPerRou` or `controllersMeta[i].providersPerReq`): Affects only the specific controller or route (e.g. selectively adding interceptors as in `BodyParserExtension`).
@@ -260,19 +296,18 @@ Always ensure your extension is ordered **after** the extension that produces th
 Since the extension's internal injector is temporary and destroyed post-bootstrap, any state or runtime resource initialized by an extension (e.g., database connection pools, SDK clients, external service configurations, compiled caches) must be transferred to the application's long-lived DI hierarchy.
 
 To pass a ready object or resource instance to the application:
+
 1. Initialize or connect to the resource asynchronously inside `stage1()` or `stage2()`.
 2. Push a `ValueProvider` (`{ token: 'some-token', useValue: initializedInstance }`) into the appropriate provider hierarchy array (`providersPerApp`, `providersPerMod`, `providersPerRou`, or `providersPerReq`).
 
 ```ts
 @injectable()
 export class DbExtension implements Extension<void> {
-  constructor(
-    @inject(PROVIDERS_PER_APP) protected providersPerApp: Provider[],
-  ) {}
+  constructor(@inject(PROVIDERS_PER_APP) protected providersPerApp: Provider[]) {}
 
   async stage1(): Promise<void> {
     // 1. Asynchronously create/initialize the resource during bootstrap
-    const dbClient = await createDbConnection({ /* config */ });
+    const dbClient = await createDbConnection({/* config */});
 
     // 2. Register the existing instance into application DI via ValueProvider
     this.providersPerApp.push({ token: DbClient, useValue: dbClient });
