@@ -69,34 +69,18 @@ Extension-specific configurations passed via `@featureModule({ extensionsMeta: {
 
 An extension retrieves `extensionsMeta` from `normalizedModuleMeta` depending on how it receives module metadata:
 
-1. **Via `ResolvedModuleMeta` (or `RestResolvedModuleMeta`)**:
-   When an extension receives resolved module metadata via constructor or method injection (e.g. extending `RestRouteExtension` as in `OpenapiRouteExtension`):
+1. **Via `ResolvedModuleMeta` in constructor**:
 
    ```ts
-   // Example from @ditsmod/openapi (openapi-routes.extension.ts):
-   protected override getControllersMetadata(
-     prefixPerApp: string,
-     restResolvedModuleMeta: RestResolvedModuleMeta,
-   ) {
-     const { normalizedModuleMeta } = restResolvedModuleMeta;
-     const oasOptions = normalizedModuleMeta.extensionsMeta.oasOptions as OasOptions;
-     const prefixParams = oasOptions?.parameters;
-     // ...
-   }
+   const myOptions = this.resolvedModuleMeta.normalizedModuleMeta.extensionsMeta[MY_EXTENSION];
    ```
 
 2. **Via `RouteExtensionMeta` from `ExtensionManager`**:
-   When consuming route metadata produced by `RestRouteExtension` or another lead extension via `ExtensionManager.stage1(RestRouteExtension)`:
-
    ```ts
-   const meta = await this.extensionManager.stage1(RestRouteExtension);
-   meta.groupData.forEach((routeExtensionMeta) => {
-     const { normalizedModuleMeta } = routeExtensionMeta;
-     const customOptions = normalizedModuleMeta.extensionsMeta.myCustomOptions;
-   });
+   const myOptions = routeExtensionMeta.normalizedModuleMeta.extensionsMeta[MY_EXTENSION];
    ```
 
-In all cases, `extensionsMeta` is accessed directly as a property of `normalizedModuleMeta` (`normalizedModuleMeta.extensionsMeta`). Keep each extension's metadata stored under its own dedicated key.
+In all cases, `extensionsMeta` is accessed directly as a property of `normalizedModuleMeta` (`normalizedModuleMeta.extensionsMeta`). Keep each extension's metadata stored under its own dedicated key. For full runnable class implementations and patterns for passing and consuming `extensionsMeta`, see [references/REFERENCE.md](references/REFERENCE.md#extensionsmeta-usage-pattern).
 
 ---
 

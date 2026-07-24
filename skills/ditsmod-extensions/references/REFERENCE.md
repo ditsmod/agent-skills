@@ -241,3 +241,71 @@ After stage2() completes for ALL modules:
 ```
 
 The order of extensions within a module at stage2 and stage3 is the same as at stage1.
+
+---
+
+## `extensionsMeta` Usage Pattern
+
+### Passing configuration in a module
+
+```ts
+import { type DynamicModule } from '@ditsmod/core';
+import { MY_EXTENSION } from './my.extension.js';
+
+export class DataModule {
+  static withConfig(config: DataConfig): DynamicModule<DataModule> {
+    return {
+      module: this,
+      extensionsMeta: {
+        [MY_EXTENSION]: config, // one key per extension
+      },
+    };
+  }
+}
+```
+
+### Accessing configuration in an extension
+
+During module normalization, `extensionsMeta` is saved in `normalizedModuleMeta.extensionsMeta`. An extension can read this property in one of two common ways:
+
+1. **Directly in the extension constructor** by injecting `ResolvedModuleMeta`:
+
+```ts
+import { injectable, Extension, ResolvedModuleMeta } from '@ditsmod/core';
+import { MY_EXTENSION } from './my.extension.js';
+
+@injectable()
+export class MyExtension implements Extension<void> {
+  constructor(private resolvedModuleMeta: ResolvedModuleMeta) {}
+
+  async stage1() {
+    const myOptions = this.resolvedModuleMeta.normalizedModuleMeta.extensionsMeta[MY_EXTENSION];
+    if (myOptions?.enableFeature) {
+      // Do something with options
+    }
+  }
+}
+```
+
+2. **From other extensions** via `ExtensionManager`:
+
+```ts
+import { injectable, Extension, ExtensionManager } from '@ditsmod/core';
+import { RestRouteExtension } from '@ditsmod/rest';
+import { MY_EXTENSION } from './my.extension.js';
+
+@injectable()
+export class MyExtension implements Extension<void> {
+  constructor(private extensionManager: ExtensionManager) {}
+
+  async stage1() {
+    const groupMeta = await this.extensionManager.stage1(RestRouteExtension);
+    groupMeta.groupData.forEach((routeExtensionMeta) => {
+      const myOptions = routeExtensionMeta.normalizedModuleMeta.extensionsMeta[MY_EXTENSION];
+      // Do something with options
+    });
+  }
+}
+```
+
+Keep each extension's data isolated under its own symbol or string key to prevent conflicts between extensions.

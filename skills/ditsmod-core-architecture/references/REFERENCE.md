@@ -380,42 +380,6 @@ Use this decision tree when choosing provider scope:
 3. Must be a single instance per matched route (e.g., route-level state)? → `providersPerRou`
 4. Must be fresh per HTTP request (e.g., request context, user session)? → `providersPerReq`
 
-### `extensionsMeta` Usage Pattern
-
-**Passing configuration in a module:**
-
-```ts
-import { type DynamicModule } from '@ditsmod/core';
-import { MY_EXTENSION } from './my.extension.js';
-
-export class DataModule {
-  static withConfig(config: DataConfig): DynamicModule<DataModule> {
-    return {
-      module: this,
-      extensionsMeta: {
-        [MY_EXTENSION]: config, // one key per extension
-      },
-    };
-  }
-}
-```
-
-**Accessing configuration in an extension:**
-
-During module normalization, `extensionsMeta` is saved in `normalizedModuleMeta.extensionsMeta`. An extension reads its configuration directly from `normalizedModuleMeta.extensionsMeta`:
-
-```ts
-// 1. From resolved module metadata (e.g. in @ditsmod/openapi's OpenapiRouteExtension):
-const { normalizedModuleMeta } = restResolvedModuleMeta;
-const oasOptions = normalizedModuleMeta.extensionsMeta.oasOptions as OasOptions;
-
-// 2. From route extension metadata via ExtensionManager:
-const { normalizedModuleMeta } = routeExtensionMeta;
-const myConfig = normalizedModuleMeta.extensionsMeta[MY_EXTENSION];
-```
-
-Keep each extension's data isolated under its own symbol or string key to prevent conflicts between extensions.
-
 ### Common Collision Error Message Pattern
 
 ```
