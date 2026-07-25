@@ -126,7 +126,7 @@ To run this minimal application, ensure you have:
 1. Node.js >= v24.0.0.
 2. The required Ditsmod and TypeScript packages installed:
    ```bash
-   npm i @ditsmod/core @ditsmod/rest
+   npm i @ditsmod/core@next @ditsmod/rest@next
    npm i -D typescript @types/node
    ```
 3. The following compiler options enabled in `tsconfig.json`:
