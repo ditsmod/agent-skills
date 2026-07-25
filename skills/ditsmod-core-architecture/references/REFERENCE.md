@@ -1003,6 +1003,142 @@ protected async runShutdownHooks(
 
 Errors thrown in `beforeShutdown` or `onShutdown` methods do not interrupt other services' shutdown hooks; they are logged via `this.log.shutdownError()`.
 
+## Part 6: LogMediator & Log Buffering
+
+`LogMediator` is the foundational abstraction in Ditsmod for structured, strongly-typed, and context-aware logging. It separates log message formatting from application/extension logic and enables log buffering during application startup.
+
+### 1. Strongly-Typed Module Log Mediators
+
+Rather than injecting `Logger` directly and scattering string templates across extensions or services, Ditsmod modules create a dedicated subclass of `LogMediator`.
+
+#### Creating a Custom Log Mediator
+
+1. Create a class extending `LogMediator` decorated with `@injectable()`.
+2. Define typed methods for each log message. Each method typically accepts `self: object` (to extract `self.constructor.name`) and any relevant contextual parameters.
+3. Inside each method, format the message string and call `this.setLog(inputLogLevel, msg)`.
+
+```ts
+import { injectable, LogMediator, InputLogLevel } from '@ditsmod/core';
+
+@injectable()
+export class OpenapiLogMediator extends LogMediator {
+  /**
+   * `trace: ${className}: waiting for last module with ${className}.`
+   */
+  dataAccumulation(self: object) {
+    const className = self.constructor.name;
+    this.setLog('trace', `${className}: return false, waiting for last module with ${className}.`);
+  }
+
+  /**
+   * `trace: ${className}: config file (with XOasObject type) not found, applying default.`
+   */
+  oasObjectNotFound(self: object) {
+    const className = self.constructor.name;
+    this.setLog('trace', `${className}: config file (with XOasObject type) not found, applying default.`);
+  }
+
+  /**
+   * `warn: ${className}: ${msg}`
+   */
+  customWarning(self: object, msg: string) {
+    const className = self.constructor.name;
+    this.setLog('warn', `${className}: ${msg}`);
+  }
+}
 ```
 
+#### Registering & Injecting the Log Mediator
+
+Register the log mediator in the module's `providersPerMod` (or `providersPerApp`) and inject it into extensions, controllers, or services:
+
+```ts
+// In module definition:
+@featureModule({
+  providersPerMod: [OpenapiLogMediator],
+})
+export class OpenapiModule {}
+
+// In extension or service:
+@injectable()
+export class OpenapiCompilerExtension implements Extension<void> {
+  constructor(protected log: OpenapiLogMediator) {}
+
+  async stage1(): Promise<void> {
+    this.log.dataAccumulation(this);
+    // ...
+  }
+}
+```
+
+### 2. Log Buffering Mechanics (`bufferLogs` & `buffer`)
+
+During application bootstrap, extensions and modules write logs **before** the user's `OutputLogLevel` or custom `LoggerConfig` may be fully resolved. To handle this cleanly, `LogMediator` provides static log buffering capabilities.
+
+#### Static Buffer Properties
+
+```ts
+export abstract class LogMediator {
+  static bufferLogs?: boolean = false;
+  static buffer: LogEntry[] = [];
+}
+```
+
+- **`LogMediator.bufferLogs`**: When set to `true` (typically by `BaseAppInitializer` / `RestApplication.bootstrap(AppModule, { bufferLogs: true })`), `this.setLog()` does **not** write directly to the logger.
+- **`LogMediator.buffer`**: Instead, `this.setLog()` pushes structured `LogEntry` items into this shared static array:
+
+```ts
+interface LogEntry {
+  isExternal: boolean;
+  showExternalLogs: boolean;
+  moduleName: string;
+  inputLogLevel: InputLogLevel;
+  outputLogLevel: OutputLogLevel;
+  date: Date;
+  msg: string;
+}
+```
+
+#### Automatic Formatting in `setLog`
+
+When `bufferLogs` is `false`, `setLog()` automatically formats log output using module metadata:
+
+```ts
+this.logger.log(inputLogLevel, `[${this.moduleInfo.moduleName}]: ${msg}`);
+```
+
+#### Flushing Buffered Logs (`flush()`)
+
+Once application providers and extensions are initialized and the final `OutputLogLevel` is established, `systemLogMediator.flush()` is called:
+
+```ts
+// In SystemLogMediator:
+flush() {
+  const { buffer } = LogMediator;
+  this.writeLogs(buffer);
+  buffer.splice(0); // Clears the static buffer
+  LogMediator.hasDiffLogLevels = false;
+}
+```
+
+`writeLogs()` iterates over all buffered `LogEntry` objects, updates their `outputLogLevel` to the resolved log level, filters out external module logs if `showExternalLogs === false`, and writes each entry using a child logger instance.
+
+### 3. Overriding System Log Messages
+
+Framework-level log messages emitted during bootstrap are defined in `SystemLogMediator` (which extends `LogMediator`). Applications can customize or translate framework log messages by extending `SystemLogMediator` and registering the subclass as a provider for `SystemLogMediator`:
+
+```ts
+@injectable()
+export class CustomSystemLogMediator extends SystemLogMediator {
+  override startingDitsmod(self: object) {
+    const className = self.constructor.name;
+    this.setLog('debug', `${className}: Запуск застосунку Ditsmod...`);
+  }
+}
+
+// In AppModule:
+@rootModule({
+  providersPerApp: [{ token: SystemLogMediator, useClass: CustomSystemLogMediator }],
+})
+export class AppModule {}
 ```

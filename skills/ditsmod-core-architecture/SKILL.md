@@ -482,6 +482,14 @@ When `app.close(signal)` is called (via signal or manually), `BaseApplication` e
 
 For implementation code examples (`BeforeShutdown` / `OnShutdown`), `customShutdown` subclassing patterns, and active instance discovery mechanics, see [references/REFERENCE.md](references/REFERENCE.md#part-5-application-lifecycle--shutdown-references).
 
+## Part 5: Logging, LogMediator & Log Buffering
+
+Ditsmod uses `LogMediator` as a strongly-typed abstraction over `Logger`. Modules create custom log mediators extending `LogMediator` (e.g., `OpenapiLogMediator` or `AuthjsLogMediator`) with typed methods calling `this.setLog(level, msg)`.
+
+During application bootstrap (`bufferLogs: true`), logs written via `setLog()` are held in a static buffer (`LogMediator.buffer`) instead of outputting immediately. Once bootstrap completes, `systemLogMediator.flush()` formats and outputs all buffered logs at the resolved log level.
+
+For complete code examples, typed method design, log buffering mechanics, and overriding `SystemLogMediator`, see [references/REFERENCE.md](references/REFERENCE.md#part-6-logmediator--log-buffering).
+
 ## Core Debugging & Troubleshooting Checklists
 
 ### Dependency Injection Debugging Checklist
