@@ -7,15 +7,11 @@ description: 'Scheduling tasks in Ditsmod with @ditsmod/schedule: @cron / @inter
 
 `@ditsmod/schedule` provides decorator-based task scheduling — cron jobs, periodic intervals, and one-shot timeouts — for Ditsmod applications. Scheduling is implemented as a Ditsmod extension (`ScheduleExtension`) and requires no manual wiring beyond importing `ScheduleModule`.
 
----
-
 ## Installation
 
 ```bash
 yarn add @ditsmod/schedule
 ```
-
----
 
 ## Module Setup
 
@@ -37,8 +33,6 @@ export class AppModule {}
 
 > [!IMPORTANT]
 > Task classes **must** be registered in `providersPerMod` or `providersPerApp`. Registration in `providersPerRou` or `providersPerReq` is explicitly forbidden — the extension will emit a warning and skip those providers. See [Provider Scope Constraints](#provider-scope-constraints) for details.
-
----
 
 ## Declaring Tasks
 
@@ -68,8 +62,6 @@ export class ReportTasks {
   }
 }
 ```
-
----
 
 ## Decorator Reference
 
@@ -113,8 +105,6 @@ Runs the method on a cron schedule. Uses the [`cron`](https://www.npmjs.com/pack
 @cron(new Date('2027-01-01T00:00:00Z'), { name: 'new-year' })
 ```
 
----
-
 ### `@interval(nameOrTimeout: string | number, timeout?: number)`
 
 Runs the method repeatedly every `timeout` milliseconds via `setInterval`. If only `nameOrTimeout` is provided as a number, it acts as the timeout (anonymous task).
@@ -132,8 +122,6 @@ Runs the method repeatedly every `timeout` milliseconds via `setInterval`. If on
 - When no name is provided, the interval is tracked internally with a random UUID and **cannot** be retrieved by name via `SchedulerRegistry`.
 - Named intervals can be stopped at runtime with `SchedulerRegistry.deleteInterval(name)`.
 
----
-
 ### `@timeout(nameOrTimeout: string | number, timeout?: number)`
 
 Runs the method **once** after `timeout` milliseconds via `setTimeout`. If only `nameOrTimeout` is provided as a number, it acts as the timeout (anonymous task).
@@ -149,8 +137,6 @@ Runs the method **once** after `timeout` milliseconds via `setTimeout`. If only 
 ```
 
 - Named timeouts can be cancelled at runtime with `SchedulerRegistry.deleteTimeout(name)`.
-
----
 
 ## `CronExpression` Enum
 
@@ -183,8 +169,6 @@ Key members (supports both 5-field standard and 6-field seconds-precision expres
 | `EVERY_YEAR`                           | `0 0 1 1 *`         |
 | `MONDAY_TO_FRIDAY_AT_9AM`              | `0 0 09 * * 1-5`    |
 | `EVERY_30_MINUTES_BETWEEN_9AM_AND_5PM` | `0 */30 9-17 * * *` |
-
----
 
 ## `SchedulerRegistry` — Runtime Task Management
 
@@ -269,8 +253,6 @@ this.registry.addCronJob('dynamic-cron', customJob);
 customJob.start();
 ```
 
----
-
 ## Graceful Shutdown
 
 `SchedulerOrchestrator` implements the Ditsmod `BeforeShutdown` lifecycle hook. On application shutdown it automatically:
@@ -281,8 +263,6 @@ customJob.start();
 4. Clears and deletes all timeouts.
 
 No manual cleanup is required in application code.
-
----
 
 ## Disabled Jobs and `initialDelay`
 
@@ -312,8 +292,6 @@ pollExternalApi(): void { /* ... */ }
 > [!IMPORTANT]
 > If `disabled: true` is combined with `initialDelay`, the job is registered but never started automatically — `initialDelay` is silently ignored in that case.
 
----
-
 ## Provider Scope Constraints
 
 Scheduled tasks are application-lifetime singletons that must be instantiated once, not per-route or per-request.
@@ -328,8 +306,6 @@ Scheduled tasks are application-lifetime singletons that must be instantiated on
 > [!IMPORTANT]
 > `SchedulerRegistry` and `SchedulerOrchestrator` are registered at `providersPerApp`. All tasks from all modules share a single registry and are all cleaned up together on shutdown.
 
----
-
 ## Internals: Bootstrap Lifecycle
 
 Understanding how `ScheduleExtension` operates helps avoid subtle bugs:
@@ -339,8 +315,6 @@ Understanding how `ScheduleExtension` operates helps avoid subtle bugs:
 3. **`stage3`** — calls `SchedulerOrchestrator.mountJobs()`, which activates all pending timeouts (`setTimeout`), intervals (`setInterval`), and cron jobs (`CronJob.from(...)`). This runs once for the entire application.
 
 The `ScheduleExtension` is registered with `exportOnly: true` in `ScheduleModule`, meaning it runs only in the modules that import `ScheduleModule`, not in `ScheduleModule` itself.
-
----
 
 ## Troubleshooting
 

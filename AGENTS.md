@@ -41,6 +41,7 @@ Ditsmod packages and `@ts-stack/*` packages are always published with their sour
   Group imports only if there are more than 4 imports in one of the groups.
 
 - Prefer use native Node.js subpath imports (`#di/*`, `#init/*`, etc.) as internal aliases. In `tsconfig.json` they resolve to `src/`; in `package.json` `imports` they resolve to `dist/`. Always maintain both in sync when adding new internal modules.
+- Do not use barrel files (e.g., `index.ts` files intended to simplify symbol imports), as they increase the likelihood of circular dependencies.
 
 ## User Interaction
 
