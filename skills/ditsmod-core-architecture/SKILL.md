@@ -164,14 +164,14 @@ export class UsersModule {
 
 Pass extension-specific data via `extensionsMeta` inside `DynamicModule` or module decorators (`@featureModule`, `@restModule`, etc.). Keep each extension's data under a single dedicated key. During module initialization, `extensionsMeta` is normalized into `normalizedModuleMeta.extensionsMeta`, where extensions can access it (e.g. `const oasOptions = normalizedModuleMeta.extensionsMeta.oasOptions as OasOptions`).
 
-### Init Decorators
+### Mixin Decorators
 
-An **init decorator** is a custom class decorator created using `Reflector.makeClassDecorator()` whose options are processed and normalized by **init hooks** during the module initialization phase.
+An **mixin decorator** is a custom class decorator created using `Reflector.makeClassDecorator()` whose options are processed and normalized by **module mixins** during the module initialization phase.
 
 > [!WARNING]
-> If you can easily pass metadata to a module using a dynamic module, creating an init decorator is **not recommended**. Consider using a dynamic module first.
+> If you can easily pass metadata to a module using a dynamic module, creating an mixin decorator is **not recommended**. Consider using a dynamic module first.
 
-For details on the roles of init decorators (root module, feature module, and modifier decorators), usage rules, and parent init hook propagation mechanics, see [references/REFERENCE.md](references/REFERENCE.md#part-3-init-decorators-and-inithooks).
+For details on the roles of mixin decorators (root module, feature module, and modifier decorators), usage rules, and parent module mixin propagation mechanics, see [references/REFERENCE.md](references/REFERENCE.md#part-3-mixin-decorators-and-modulemixin).
 
 ### Provider Visibility And Lifetime
 
