@@ -301,7 +301,7 @@ resolvedCollisionsPerApp?: [any, ModRefId | ForwardRefFn<StaticModule>][];
 
 ### `DynamicModule` Shape
 
-`DynamicModule` is composed of interfaces in `@ditsmod/core` (`DynamicModuleBase` and `DynamicModuleOptions`), and `DynamicModuleWithInit` extends `DynamicModule`:
+`DynamicModule` is composed of interfaces in `@ditsmod/core` (`DynamicModuleBase` and `DynamicModuleOptions`), and `DynamicModuleWithMixin` extends `DynamicModule`:
 
 ```ts
 // Source: @ditsmod/core — decorators/module-decorator-options.ts
@@ -430,7 +430,7 @@ import {
   Reflector,
   MixinOptions,
   DynamicModuleOptions,
-  NormalizedMixinMeta,
+  BaseNormalizedModuleMeta,
   NormalizedModuleMeta,
   RootModuleOptions,
 } from '@ditsmod/core';
@@ -461,7 +461,7 @@ interface MixinDynamicOptions extends DynamicModuleOptions {
 /**
  * Module mixins transform an object of ExtMixinDecorOpts into an object of that type.
  */
-interface MixinMeta extends NormalizedMixinMeta {
+interface MixinMeta extends BaseNormalizedModuleMeta {
   normalizedModuleMeta: NormalizedModuleMeta;
   mixinDecoratorOptions: RootModuleOptions;
 }
@@ -488,7 +488,7 @@ export class SomeModule {}
 
 - `moduleRole?: 'root' | 'feature'`: Set to `'root'` or `'feature'` to make the mixin decorator act as a complete module decorator (meaning standard decorators are not required).
 - `hostModule?: StaticModule`: If specified, the module class representing the host module will be automatically imported into any module class decorated with this mixin decorator.
-- `hostDecoratorOptions?: T`: Raw options to pass to the decorator for the host module. When `hostModule` is normalizer-scanned, this allows attaching metadata to the host module class without directly decorating it (avoiding circular imports).
+- `hostMixinOptions?: T`: Raw options to pass as mixin parameters for the host module. When `hostModule` is normalizer-scanned, this allows attaching metadata to the host module class without directly decorating it (avoiding circular imports).
 - `normalize(normalizedModuleMeta)`: Normalizes and validates raw options, returning a normalized metadata object that is saved in `normalizedModuleMeta.mixinMeta`.
 - `getModulesToScan(meta)`: Returns an array of `ModRefId` modules that should also be scanned (e.g., appended modules in REST).
 - `exportAppProviders(config)`: Invoked at bootstrap to collect and export application-level providers.

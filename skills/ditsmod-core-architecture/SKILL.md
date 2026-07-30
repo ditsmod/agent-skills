@@ -122,6 +122,7 @@ The root module (`AppModule`) has a unique global propagation capability:
 
 - **Declared Providers:** Any providers registered in `AppModule` (`providersPerMod`, `providersPerRou`, or `providersPerReq`) that are also listed in `AppModule`'s `exports` array are automatically imported into **all local feature modules**.
 - **Re-Exported Modules:** Any modules listed in both `imports` and `exports` of `AppModule` have their exported providers and extensions automatically imported into **all local feature modules**.
+- **Export Without Import:** Unlike feature modules (which throw a `ReexportFailure` if they export a module without importing it), the root module is allowed to export modules without explicitly importing them first. Their exported providers and extensions will still be automatically propagated to all local feature modules.
 - **Nuance:** This automatic propagation applies exclusively to local feature modules (it excludes third-party modules imported from `node_modules`).
 
 ### Re-Export Modules
