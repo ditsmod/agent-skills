@@ -428,7 +428,7 @@ import {
   ModuleMixin,
   MixinDecorator,
   Reflector,
-  MixinOptions,
+  StaticMixinOptions,
   DynamicModuleOptions,
   BaseNormalizedModuleMeta,
   NormalizedModuleMeta,
@@ -438,7 +438,7 @@ import {
 /**
  * An object with this type will be passed directly to the mixin decorator - @mixinSome({ one: 1, two: 2 })
  */
-interface ExtMixinDecorOpts extends MixinOptions<MixinDynamicOptions> {
+interface ExtMixinDecorOpts extends StaticMixinOptions<MixinDynamicOptions> {
   one?: number;
   two?: number;
 }
