@@ -324,16 +324,16 @@ interface DynamicModule<M extends AnyObj = AnyObj> extends DynamicModuleBase<M>,
 
 Note: there is **no** index signature (`[key: string]: unknown`) in `DynamicModule`. Extra properties are not generically allowed.
 
-`path` is **not** a field of `DynamicModule` from `@ditsmod/core`. When using `@ditsmod/rest`, the object passed to `imports[]` is typed as `RestModuleOptions`, which extends `DynamicModuleOptions` and adds route-specific fields:
+`path` is **not** a field of `DynamicModule` from `@ditsmod/core`. When using `@ditsmod/rest`, the object passed to `imports[]` is typed as `RestDynamicOptions`, which extends `DynamicModuleOptions` and adds route-specific fields:
 
 ```ts
 // Source: @ditsmod/rest — init/rest-mixin-raw-meta.ts
-// RestModuleOptions = PathRestModuleOptions | AbsolutePathRestModuleOptions
-interface PathRestModuleOptions extends BaseRestModuleOptions {
+// RestDynamicOptions = RestDynamicPathOptions | RestDynamicAbsolutePathOptions
+interface RestDynamicPathOptions extends BaseRestModuleOptions {
   path?: string;
   absolutePath?: never; // mutually exclusive with absolutePath
 }
-interface AbsolutePathRestModuleOptions extends BaseRestModuleOptions {
+interface RestDynamicAbsolutePathOptions extends BaseRestModuleOptions {
   absolutePath?: string;
   path?: never; // mutually exclusive with path
 }
@@ -434,11 +434,12 @@ import {
   NormalizedModuleMeta,
   RootModuleOptions,
 } from '@ditsmod/core';
+// ...
 
 /**
  * An object with this type will be passed directly to the mixin decorator - @mixinSome({ one: 1, two: 2 })
  */
-interface ExtMixinDecorOpts extends StaticMixinOptions<MixinDynamicOptions> {
+interface MyStaticMixinOptions extends StaticMixinOptions<DynamicMixinOptions> {
   one?: number;
   two?: number;
 }
@@ -446,27 +447,27 @@ interface ExtMixinDecorOpts extends StaticMixinOptions<MixinDynamicOptions> {
 /**
  * The methods of this class will normalize and validate the module metadata.
  */
-class SomeModuleMixin extends ModuleMixin<ExtMixinDecorOpts> {
+class SomeModuleMixin extends ModuleMixin<MyStaticMixinOptions> {
   // ...
 }
 
 /**
- * An object with this type will be passed in the module metadata as a so-called "DynamicModule".
+ * An object with this type will be passed in the module metadata as dynamic module.
  */
-interface MixinDynamicOptions extends DynamicModuleOptions {
+interface DynamicMixinOptions extends DynamicModuleOptions {
   path?: string;
   num?: number;
 }
 
 /**
- * Module mixins transform an object of ExtMixinDecorOpts into an object of that type.
+ * Module mixins transform an object of MyStaticMixinOptions into an object of that type.
  */
-interface MixinMeta extends BaseNormalizedModuleMeta {
+interface MyNormalizedModuleMeta extends BaseNormalizedModuleMeta {
   normalizedModuleMeta: NormalizedModuleMeta;
   mixinDecoratorOptions: RootModuleOptions;
 }
 
-function transformMixinOptions(data?: ExtMixinDecorOpts): ModuleMixin<ExtMixinDecorOpts> {
+function transformMixinOptions(data?: MyStaticMixinOptions): ModuleMixin<MyStaticMixinOptions> {
   const metadata = Object.assign({}, data);
   const moduleMixin = new SomeModuleMixin(metadata);
   moduleMixin.moduleRole = undefined;
@@ -476,7 +477,7 @@ function transformMixinOptions(data?: ExtMixinDecorOpts): ModuleMixin<ExtMixinDe
 }
 
 // Creating the mixin decorator
-const mixinSome: MixinDecorator<ExtMixinDecorOpts, MixinDynamicOptions, MixinMeta> =
+const mixinSome: MixinDecorator<MyStaticMixinOptions, DynamicMixinOptions, MyNormalizedModuleMeta> =
   Reflector.makeClassDecorator(transformMixinOptions);
 
 // Using mixin decorator
