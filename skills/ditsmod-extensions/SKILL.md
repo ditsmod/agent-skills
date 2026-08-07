@@ -1,13 +1,13 @@
 ---
-name: ditsmod-extensions
-description: Practical guidance for creating, registering, ordering, exporting, grouping, and overriding Ditsmod extensions. Use when writing custom extensions with stage1/stage2/stage3 hooks, injecting ExtensionManager to retrieve same-module or app-wide data (handling delay), dynamically registering providers, configuring module extensions metadata, or resolving cyclic extension dependencies.
+name: holu-extensions
+description: Practical guidance for creating, registering, ordering, exporting, grouping, and overriding Holu extensions. Use when writing custom extensions with stage1/stage2/stage3 hooks, injecting ExtensionManager to retrieve same-module or app-wide data (handling delay), dynamically registering providers, configuring module extensions metadata, or resolving cyclic extension dependencies.
 ---
 
-# Ditsmod Extensions
+# Holu Extensions
 
 ## Mental Model
 
-Extensions run **after** Ditsmod collects static metadata from decorators but **before** request handlers are created. Think of them as "infrastructure setup" hooks that operate on the fully assembled module graph.
+Extensions run **after** Holu collects static metadata from decorators but **before** request handlers are created. Think of them as "infrastructure setup" hooks that operate on the fully assembled module graph.
 
 - Extensions operate strictly during the application initialization stage to set up infrastructure and do not participate directly in request processing.
 - Extensions prepare infrastructure: dynamically add interceptors/providers, build route metadata, set up OpenAPI docs, initialize DB connections.
@@ -24,8 +24,8 @@ An extension is a class decorated with `@injectable()` that implements the `Exte
 > The stages `stage1`, `stage2`, and `stage3` are framework lifecycle hooks that are **always executed sequentially** in that order during the application bootstrap process. They are never skipped or executed out of order. Therefore, you can rely on state populated in `stage2` (like a module injector instance) to always be available in `stage3`.
 
 ```ts
-import { injectable, inject, PROVIDERS_PER_APP } from '@ditsmod/core';
-import type { Extension, ExtensionManager, Injector, Provider } from '@ditsmod/core';
+import { injectable, inject, PROVIDERS_PER_APP } from '@holu/core';
+import type { Extension, ExtensionManager, Injector, Provider } from '@holu/core';
 
 @injectable()
 export class MyExtension implements Extension<MyPayload | void> {
@@ -56,7 +56,7 @@ export class MyExtension implements Extension<MyPayload | void> {
 ### Constructor Injection Constraints
 
 - The injector for the extension constructor is created **before any extension runs**.
-- You can only inject providers statically registered (module-level or app-level) before extensions execute, or default extension providers exported via `defaultExtensionProviders` from `@ditsmod/core`.
+- You can only inject providers statically registered (module-level or app-level) before extensions execute, or default extension providers exported via `defaultExtensionProviders` from `@holu/core`.
 - You **cannot** inject providers that are dynamically added by other extensions.
 - The extension and application injectors belong to separate hierarchy trees. The extension injector is short-lived and destroyed once the extensions finish initializing. Because any providers instantiated within the extension's constructor belong to this temporary injector, they are not shared with the main application.
 

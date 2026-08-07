@@ -1,8 +1,8 @@
-# Ditsmod Extensions — Technical Reference
+# Holu Extensions — Technical Reference
 
 ## `Extension<T>` Interface
 
-Source: `@ditsmod/core` — `extension/extension-types.ts`
+Source: `@holu/core` — `extension/extension-types.ts`
 
 ```ts
 interface Extension<T = any> {
@@ -84,7 +84,7 @@ class ExtensionDebugMeta<T = any> {
 
 ## `ExtensionConfig` Union
 
-Source: `@ditsmod/core` — `extension/extension-providers-and-configs.ts`
+Source: `@holu/core` — `extension/extension-providers-and-configs.ts`
 
 `ExtensionConfig` is a discriminated union of three shapes:
 
@@ -249,7 +249,7 @@ The order of extensions within a module at stage2 and stage3 is the same as at s
 ### Passing configuration in a module
 
 ```ts
-import { type DynamicModule } from '@ditsmod/core';
+import { type DynamicModule } from '@holu/core';
 import { MY_EXTENSION } from './my.extension.js';
 
 export class DataModule {
@@ -271,7 +271,7 @@ During module normalization, `extensionsMeta` is saved in `normalizedModuleMeta.
 1. **Directly in the extension constructor** by injecting `ResolvedModuleMeta`:
 
 ```ts
-import { injectable, Extension, ResolvedModuleMeta } from '@ditsmod/core';
+import { injectable, Extension, ResolvedModuleMeta } from '@holu/core';
 import { MY_EXTENSION } from './my.extension.js';
 
 @injectable()
@@ -290,8 +290,8 @@ export class MyExtension implements Extension<void> {
 2. **From other extensions** via `ExtensionManager`:
 
 ```ts
-import { injectable, Extension, ExtensionManager } from '@ditsmod/core';
-import { RestRouteExtension } from '@ditsmod/rest';
+import { injectable, Extension, ExtensionManager } from '@holu/core';
+import { RestRouteExtension } from '@holu/rest';
 import { MY_EXTENSION } from './my.extension.js';
 
 @injectable()

@@ -1,4 +1,4 @@
-# Ditsmod Core Architecture — Technical Reference
+# Holu Core Architecture — Technical Reference
 
 This guide contains detailed reference material, API definitions, type shapes, and execution examples for Module, Dependency Injection (DI), and Reflector mechanics. Use it on demand for deep diagnostics, advanced configurations, and integrations.
 
@@ -21,7 +21,7 @@ Resolution path: [TokenA in injectorX >> injectorY] -> [MissingToken in injector
 
 #### Injector Naming
 
-Ditsmod auto-names injectors as `injector1` (highest/app level), `injector2`, `injector3`, etc. (lower = higher number). Pass an explicit second argument to `Injector.resolveAndCreate(providers, 'MyName')` for clearer diagnostics. In a full Ditsmod application the levels are named `App`, `Mod`, `Rou`, `Req`.
+Holu auto-names injectors as `injector1` (highest/app level), `injector2`, `injector3`, etc. (lower = higher number). Pass an explicit second argument to `Injector.resolveAndCreate(providers, 'MyName')` for clearer diagnostics. In a full Holu application the levels are named `App`, `Mod`, `Rou`, `Req`.
 
 #### Diagnostic Examples
 
@@ -39,7 +39,7 @@ child.get(Service);
 
 Reading this: `Service` was not found in `childInjector`, was found in `parentInjector`. From `parentInjector`, DI searched for `Config` — also in `parentInjector` and its ancestors — but found nothing. Fix: move `Config` to `parentInjector` or add `Service` to `childInjector` (so it uses the child's `Config`).
 
-**Example 2 — Ditsmod application level names:**
+**Example 2 — Holu application level names:**
 
 ```
 Error: No provider for [Config in Mod >> App]!
@@ -51,7 +51,7 @@ Reading this: `Service` was searched in `Req`, `Rou`, and finally found in `Mod`
 ### Complete Provider Type Reference
 
 ```ts
-import { Class } from '@ditsmod/core';
+import { Class } from '@holu/core';
 
 type Provider =
   | Class<any> // TypeProvider (shorthand)
@@ -62,10 +62,10 @@ type Provider =
   | { token: any; useToken: any; multi?: boolean }; // TokenProvider
 ```
 
-Named provider types importable from `@ditsmod/core`:
+Named provider types importable from `@holu/core`:
 
 ```ts
-import { TypeProvider, ValueProvider, ClassProvider, FactoryProvider, TokenProvider } from '@ditsmod/core';
+import { TypeProvider, ValueProvider, ClassProvider, FactoryProvider, TokenProvider } from '@holu/core';
 ```
 
 #### `useFactory` token is optional
@@ -74,10 +74,10 @@ For factory providers, `token` is optional because DI can use the factory functi
 
 ### Injector Hierarchy Simulation
 
-Full four-level hierarchy simulation matching a real Ditsmod application:
+Full four-level hierarchy simulation matching a real Holu application:
 
 ```ts
-import { Injector, Provider } from '@ditsmod/core';
+import { Injector, Provider } from '@holu/core';
 
 const providersPerApp: Provider[] = [];
 const providersPerMod: Provider[] = [];
@@ -92,7 +92,7 @@ const injectorPerReq = injectorPerRou.resolveAndCreateChild(providersPerReq, 'Re
 injectorPerApp === injectorPerMod.parent; // true
 ```
 
-Ditsmod repeats this procedure for each module, route, and HTTP request.
+Holu repeats this procedure for each module, route, and HTTP request.
 
 ### `Context.getInScope()` vs `Context.get()`
 
@@ -115,7 +115,7 @@ child.get(Context).getInScope('key2', child); // 'value2'  (found in child Conte
 ### `@inject` + `@input` Full Example
 
 ```ts
-import { injectable, inject, input, Injector } from '@ditsmod/core';
+import { injectable, inject, input, Injector } from '@holu/core';
 
 @injectable()
 class Dependency1 {
@@ -145,7 +145,7 @@ When extending a parent class in an `@injectable()` class, the recommended appro
 #### Option B — `@inject` decorator (type-safe, no suppression)
 
 ```ts
-import { ParentParams, injectable, inject } from '@ditsmod/core/di';
+import { ParentParams, injectable, inject } from '@holu/core/di';
 
 @injectable()
 class Child extends Parent {
@@ -174,7 +174,7 @@ class Child extends Parent {
 
 ### Parameter Validation & Transformation (Pipes) via Factory Providers
 
-In Ditsmod, route parameter validation and transformation (analogous to NestJS pipes) can be implemented using custom `FactoryProvider` logic paired with `@input` or the `input` token.
+In Holu, route parameter validation and transformation (analogous to NestJS pipes) can be implemented using custom `FactoryProvider` logic paired with `@input` or the `input` token.
 
 When `@inject(Token, 'paramName')` is used on a controller method parameter:
 
@@ -187,8 +187,8 @@ When `@inject(Token, 'paramName')` is used on a controller method parameter:
 Use an `@injectable()` class with `@factoryMethod()`, receiving context via `@ctx(PATH_PARAMS)` and target property name via `@input`:
 
 ```ts
-import { injectable, factoryMethod, inject, ctx, input, AnyObj } from '@ditsmod/core';
-import { controller, route, PATH_PARAMS } from '@ditsmod/rest';
+import { injectable, factoryMethod, inject, ctx, input, AnyObj } from '@holu/core';
+import { controller, route, PATH_PARAMS } from '@holu/rest';
 import { BadRequestError } from './errors.js';
 
 interface PostParams {
@@ -231,8 +231,8 @@ export class ClassPipeController {
 Use a standalone function factory with `deps: [Context, input]`:
 
 ```ts
-import { Context, inject, input } from '@ditsmod/core';
-import { controller, route, PATH_PARAMS } from '@ditsmod/rest';
+import { Context, inject, input } from '@holu/core';
+import { controller, route, PATH_PARAMS } from '@holu/rest';
 import { BadRequestError } from './errors.js';
 
 interface ProductParams {
@@ -271,10 +271,10 @@ export class FunctionPipeController {
 
 ### Full Module Metadata Shapes
 
-`@ditsmod/core` defines metadata via the `FeatureModuleOptions` class (passed to `rootModule` and `featureModule`):
+`@holu/core` defines metadata via the `FeatureModuleOptions` class (passed to `rootModule` and `featureModule`):
 
 ```ts
-// Source: @ditsmod/core — decorators/module-decorator-options.ts
+// Source: @holu/core — decorators/module-decorator-options.ts
 class FeatureModuleOptions<T extends AnyObj = AnyObj> {
   // ModRefId = StaticModule | DynamicModule
   imports?: (ModRefId | ForwardRefFn<StaticModule>)[];
@@ -297,14 +297,14 @@ class FeatureModuleOptions<T extends AnyObj = AnyObj> {
 resolvedCollisionsPerApp?: [any, ModRefId | ForwardRefFn<StaticModule>][];
 ```
 
-`@ditsmod/rest` and `@ditsmod/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `FeatureModuleOptions`.
+`@holu/rest` and `@holu/trpc` extend the metadata with their own fields (`appends`, `controllers`) — these are **not** part of `FeatureModuleOptions`.
 
 ### `DynamicModule` Shape
 
-`DynamicModule` is composed of interfaces in `@ditsmod/core` (`DynamicModuleBase` and `DynamicModuleOptions`), and `DynamicModuleWithMixin` extends `DynamicModule`:
+`DynamicModule` is composed of interfaces in `@holu/core` (`DynamicModuleBase` and `DynamicModuleOptions`), and `DynamicModuleWithMixin` extends `DynamicModule`:
 
 ```ts
-// Source: @ditsmod/core — decorators/module-decorator-options.ts
+// Source: @holu/core — decorators/module-decorator-options.ts
 interface DynamicModuleBase<M extends AnyObj = AnyObj> {
   id?: string; // optional module identity string for disambiguation
   module: StaticModule<M> | ForwardRefFn<StaticModule<M>>;
@@ -324,10 +324,10 @@ interface DynamicModule<M extends AnyObj = AnyObj> extends DynamicModuleBase<M>,
 
 Note: there is **no** index signature (`[key: string]: unknown`) in `DynamicModule`. Extra properties are not generically allowed.
 
-`path` is **not** a field of `DynamicModule` from `@ditsmod/core`. When using `@ditsmod/rest`, the object passed to `imports[]` is typed as `RestDynamicOptions`, which extends `DynamicModuleOptions` and adds route-specific fields:
+`path` is **not** a field of `DynamicModule` from `@holu/core`. When using `@holu/rest`, the object passed to `imports[]` is typed as `RestDynamicOptions`, which extends `DynamicModuleOptions` and adds route-specific fields:
 
 ```ts
-// Source: @ditsmod/rest — init/rest-mixin-raw-meta.ts
+// Source: @holu/rest — init/rest-mixin-raw-meta.ts
 // RestDynamicOptions = RestDynamicPathOptions | RestDynamicAbsolutePathOptions
 interface RestDynamicPathOptions extends BaseRestModuleOptions {
   path?: string;
@@ -359,7 +359,7 @@ Use it whenever a provider array is constructed with object-form providers and y
 
 ### Import Order vs. Collision Resolution
 
-Import order does **not** determine which provider wins in a collision. Ditsmod detects any ambiguity between two imported modules that export different providers for the same token and throws a collision error, regardless of import order. Always resolve collisions explicitly via `resolvedCollisionsPer*`.
+Import order does **not** determine which provider wins in a collision. Holu detects any ambiguity between two imported modules that export different providers for the same token and throws a collision error, regardless of import order. Always resolve collisions explicitly via `resolvedCollisionsPer*`.
 
 ### Route Prefix Composition
 
@@ -433,7 +433,7 @@ import {
   BaseNormalizedModuleMeta,
   NormalizedModuleMeta,
   RootModuleOptions,
-} from '@ditsmod/core';
+} from '@holu/core';
 // ...
 
 /**
@@ -499,7 +499,7 @@ export class SomeModule {}
 
 ### Grouping Mixin Decorators via `decoratorId`
 
-When creating a substitute decorator (with `'root'` or `'feature'` role) using `Reflector.makeClassDecorator()`, you **must** pass the base modifier decorator (e.g. `mixinRest` or `mixinSome`) as the third argument. This third argument serves as the `decoratorId`. It tells Ditsmod that these decorators belong to the same group, enabling the framework to correctly collect, normalize, and associate metadata with the proper group context during initialization.
+When creating a substitute decorator (with `'root'` or `'feature'` role) using `Reflector.makeClassDecorator()`, you **must** pass the base modifier decorator (e.g. `mixinRest` or `mixinSome`) as the third argument. This third argument serves as the `decoratorId`. It tells Holu that these decorators belong to the same group, enabling the framework to correctly collect, normalize, and associate metadata with the proper group context during initialization.
 
 ### Separation of Module Logic and Substitute Decorators via hostModule
 
@@ -515,7 +515,7 @@ Separating the decorator's metadata definition from the host feature module is n
 Example:
 
 ```ts
-import { featureModule, ModuleMixin, Reflector } from '@ditsmod/core';
+import { featureModule, ModuleMixin, Reflector } from '@holu/core';
 
 // 1. Standard module containing actual logic/providers
 @featureModule({
@@ -559,7 +559,7 @@ When importing a dynamic module in the context of an mixin decorator:
 
 ### Technical Types Reference
 
-These are core interfaces and classes used by `Reflector` (primarily imported from `@ditsmod/core/di` or `@ditsmod/core`):
+These are core interfaces and classes used by `Reflector` (primarily imported from `@holu/core/di` or `@holu/core`):
 
 #### 1. `DecoratorMeta<Value>`
 
@@ -620,7 +620,7 @@ Use the static factory methods of `Reflector` to create decorators.
 #### 1. Class Decorator
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
+import { Reflector } from '@holu/core/di';
 
 // Without transformer (returns arguments as an array)
 const classLevelA = Reflector.makeClassDecorator();
@@ -642,14 +642,14 @@ class UsersService {}
 
 1. **`transformer`**: (Optional) A function that transforms the decorator arguments into a structured object (e.g., `(config) => config`).
 2. **`name`**: (Optional) A string containing the name of the decorator.
-3. **`decoratorId`**: (Optional) An identifier (typically another decorator factory function) to group related class decorators together. This is a general feature of `Reflector.makeClassDecorator()` that allows different class decorators to share a common ID, facilitating their collection and inspection under the same group. For example, in mixin-decorators, the substitute decorators (like `restModule`) pass the base modifier decorator (like `mixinRest`) as the `decoratorId` so Ditsmod knows they belong to the same group.
+3. **`decoratorId`**: (Optional) An identifier (typically another decorator factory function) to group related class decorators together. This is a general feature of `Reflector.makeClassDecorator()` that allows different class decorators to share a common ID, facilitating their collection and inspection under the same group. For example, in mixin-decorators, the substitute decorators (like `restModule`) pass the base modifier decorator (like `mixinRest`) as the `decoratorId` so Holu knows they belong to the same group.
 
-_Note: Class decorator factories capture the directory where they are executed, which is used by Ditsmod's module discovery to resolve relative paths._
+_Note: Class decorator factories capture the directory where they are executed, which is used by Holu's module discovery to resolve relative paths._
 
 #### 2. Property / Method Decorator
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
+import { Reflector } from '@holu/core/di';
 
 const propertyLevel = Reflector.makePropDecorator((role: string) => ({ role }));
 
@@ -662,7 +662,7 @@ class Controller {
 #### 3. Parameter Decorator
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
+import { Reflector } from '@holu/core/di';
 
 const paramLevel = Reflector.makeParamDecorator((token: any) => ({ token }));
 
@@ -676,7 +676,7 @@ class Handler {
 When writing a decorator that accepts multiple argument lists, use an interface to define its call signatures and let `Reflector.make*Decorator` transform the arguments:
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
+import { Reflector } from '@holu/core/di';
 
 interface RouteOptions {
   method: string;
@@ -705,8 +705,8 @@ Retrieve decorator metadata using `Reflector.collectMeta()` or `Reflector.getCla
 To get decorators directly attached to a class:
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
-import { controller } from '@ditsmod/rest';
+import { Reflector } from '@holu/core/di';
+import { controller } from '@holu/rest';
 
 // Returns all decorators on the class
 const decorators = Reflector.getClassLevelMeta(MyController);
@@ -723,7 +723,7 @@ if (controllerDecorators) {
 `Reflector.collectMeta(Cls)` returns a `MergedClassMeta` object which can be iterated to get decorated properties.
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
+import { Reflector } from '@holu/core/di';
 
 const metadata = Reflector.collectMeta(MyService);
 if (metadata) {
@@ -746,7 +746,7 @@ if (metadata) {
 When creating multiple class decorators that belong to a single logical group, you can pass a reference to the base decorator as the third argument (`decoratorId`). This makes it easy to filter/inspect them collectively at runtime:
 
 ```ts
-import { DecoratorMeta, Reflector } from '@ditsmod/core/di';
+import { DecoratorMeta, Reflector } from '@holu/core/di';
 
 // 1. Create a base decorator (acts as the Group ID)
 export const base = Reflector.makeClassDecorator((data?: any) => data, 'base');
@@ -774,7 +774,7 @@ if (decorators && decorators.length > 0) {
 `Reflector` resolves metadata throughout the entire class inheritance hierarchy. If a child class extends a parent class and overrides properties or constructor parameters, `Reflector` tracks this in the `decoratorChain` and `paramChain` fields of `MergedClassPropMeta`.
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
+import { Reflector } from '@holu/core/di';
 
 const customDecor = Reflector.makeClassDecorator((val?: string) => val);
 
@@ -808,7 +808,7 @@ if (childMeta) {
 When `Reflector.collectMeta(Child)` is executed, the following data structure is generated:
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
+import { Reflector } from '@holu/core/di';
 
 class ServiceA {}
 class ServiceB {}
@@ -849,15 +849,15 @@ metadata structure:
 
 ### Programmatic Metadata Writing (Experimental & Non-Public)
 
-Ditsmod provides experimental helper methods to attach metadata programmatically without using decorators directly (useful for code generators, dynamic routing setups, or testing environments).
+Holu provides experimental helper methods to attach metadata programmatically without using decorators directly (useful for code generators, dynamic routing setups, or testing environments).
 
 > [!IMPORTANT]
 > These methods (`setClassMeta`, `setPropertyMeta`, `setParameterMeta`) are **`protected static`** in the `Reflector` class. They are not part of the public API.
 > To use them, you must subclass `Reflector` to expose them publicly or access them via a type assertion/cast:
 
 ```ts
-import { Reflector } from '@ditsmod/core/di';
-import { controller, route } from '@ditsmod/rest';
+import { Reflector } from '@holu/core/di';
+import { controller, route } from '@holu/rest';
 
 // Exposing protected methods via subclassing:
 class CustomReflector extends Reflector {
@@ -923,7 +923,7 @@ When `app.close(signal)` is called (manually or via intercepted process signal),
 ### Service Shutdown Hooks Example (`BeforeShutdown` & `OnShutdown`)
 
 ```ts
-import { BeforeShutdown, OnShutdown, injectable } from '@ditsmod/core';
+import { BeforeShutdown, OnShutdown, injectable } from '@holu/core';
 
 @injectable()
 export class DatabaseService implements BeforeShutdown, OnShutdown {
@@ -942,7 +942,7 @@ export class DatabaseService implements BeforeShutdown, OnShutdown {
 
 `customShutdown(signal?: string)` is a protected extension method in `BaseApplication` designed for package-level application classes (`RestApplication`, gRPC/WebSocket wrappers) to perform custom resource cleanup between `beforeShutdown` and `onShutdown` hooks.
 
-#### Implementation in `@ditsmod/rest`:
+#### Implementation in `@holu/rest`:
 
 ```ts
 export class RestApplication extends BaseApplication {
@@ -960,7 +960,7 @@ export class RestApplication extends BaseApplication {
 #### Custom Application Subclass Example:
 
 ```ts
-import { BaseApplication } from '@ditsmod/core';
+import { BaseApplication } from '@holu/core';
 
 export class CustomApp extends BaseApplication {
   protected override async customShutdown(signal?: string): Promise<void> {
@@ -1006,11 +1006,11 @@ Errors thrown in `beforeShutdown` or `onShutdown` methods do not interrupt other
 
 ## Part 6: LogMediator & Log Buffering
 
-`LogMediator` is the foundational abstraction in Ditsmod for structured, strongly-typed, and context-aware logging. It separates log message formatting from application/extension logic and enables log buffering during application startup.
+`LogMediator` is the foundational abstraction in Holu for structured, strongly-typed, and context-aware logging. It separates log message formatting from application/extension logic and enables log buffering during application startup.
 
 ### 1. Strongly-Typed Module Log Mediators
 
-Rather than injecting `Logger` directly and scattering string templates across extensions or services, Ditsmod modules create a dedicated subclass of `LogMediator`.
+Rather than injecting `Logger` directly and scattering string templates across extensions or services, Holu modules create a dedicated subclass of `LogMediator`.
 
 #### Creating a Custom Log Mediator
 
@@ -1019,7 +1019,7 @@ Rather than injecting `Logger` directly and scattering string templates across e
 3. Inside each method, format the message string and call `this.setLog(inputLogLevel, msg)`.
 
 ```ts
-import { injectable, LogMediator, InputLogLevel } from '@ditsmod/core';
+import { injectable, LogMediator, InputLogLevel } from '@holu/core';
 
 @injectable()
 export class OpenapiLogMediator extends LogMediator {
@@ -1085,7 +1085,7 @@ export abstract class LogMediator {
 }
 ```
 
-- **`LogMediator.bufferLogs`**: When set to `true` (typically by `BaseAppInitializer` / `RestApplication.bootstrap(AppModule, { bufferLogs: true })`), `this.setLog()` does **not** write directly to the logger.
+- **`LogMediator.bufferLogs`**: When set to `true` (typically by `AppInitializer` / `RestApplication.bootstrap(AppModule, { bufferLogs: true })`), `this.setLog()` does **not** write directly to the logger.
 - **`LogMediator.buffer`**: Instead, `this.setLog()` pushes structured `LogEntry` items into this shared static array:
 
 ```ts
@@ -1131,9 +1131,9 @@ Framework-level log messages emitted during bootstrap are defined in `SystemLogM
 ```ts
 @injectable()
 export class CustomSystemLogMediator extends SystemLogMediator {
-  override startingDitsmod(self: object) {
+  override startingHolu(self: object) {
     const className = self.constructor.name;
-    this.setLog('debug', `${className}: Запуск застосунку Ditsmod...`);
+    this.setLog('debug', `${className}: Запуск застосунку Holu...`);
   }
 }
 

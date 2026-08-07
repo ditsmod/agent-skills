@@ -1,20 +1,20 @@
 ## Project context
 
-This repository contains a Ditsmod application.
+This repository contains a Holu application.
 
-Ditsmod is TypeScript Node.js framework based on decorators, modules, dependency injection, extensions, metadata reflection, and explicit module composition.
+Holu is TypeScript Node.js framework based on decorators, modules, dependency injection, extensions, metadata reflection, and explicit module composition.
 
 The framework requires Node.js >=v24.0.0.
 
-In Ditsmod module decorators, metadata configuration (especially `imports`, `exports`, and `providersPer*` arrays) directly shapes the DI injector hierarchy. The transfer and visibility of this metadata are completely governed by the framework's Dependency Injection rules and behavior. For details on modules, DI behavior, and metadata reflection, see the [ditsmod-core-architecture](skills/ditsmod-core-architecture/SKILL.md) skill.
+In Holu module decorators, metadata configuration (especially `imports`, `exports`, and `providersPer*` arrays) directly shapes the DI injector hierarchy. The transfer and visibility of this metadata are completely governed by the framework's Dependency Injection rules and behavior. For details on modules, DI behavior, and metadata reflection, see the [holu-core-architecture](skills/holu-core-architecture/SKILL.md) skill.
 
-## Introduction to Ditsmod Packages
+## Introduction to Holu Packages
 
-The core of the framework resides in `@ditsmod/core`, and all other Ditsmod packages depend on it. This dependency is specified via `peerDependencies` in each package's `package.json`.
+The core of the framework resides in `@holu/core`, and all other Holu packages depend on it. This dependency is specified via `peerDependencies` in each package's `package.json`.
 
-The `@ditsmod/core` contains only the bare-minimum foundational functionality (DI, modules, extensions, etc.), which is insufficient to run a full web application. This is enough to run only `StandaloneApplication`, it does not include route-creating extensions, nor does it define concepts like controllers, guards, or interceptors. All these high-level web entities are provided by `@ditsmod/rest` and `@ditsmod/trpc`. But do not mix entities from `@ditsmod/rest` and `@ditsmod/trpc` in the same application, as they have different architectural styles. If a user is using a third-party package and you don't know what architectural style it is compatible with, look at its `peerDependencies` in the `package.json` file.
+The `@holu/core` contains only the bare-minimum foundational functionality (DI, modules, extensions, etc.), which is insufficient to run a full web application. This is enough to run only `StandaloneApplication`, it does not include route-creating extensions, nor does it define concepts like controllers, guards, or interceptors. All these high-level web entities are provided by `@holu/rest` and `@holu/trpc`. But do not mix entities from `@holu/rest` and `@holu/trpc` in the same application, as they have different architectural styles. If a user is using a third-party package and you don't know what architectural style it is compatible with, look at its `peerDependencies` in the `package.json` file.
 
-Ditsmod packages and `@ts-stack/*` packages are always published with their source files in the `src` folder, so agents can utilize them if needed.
+Holu packages and `@ts-stack/*` packages are always published with their source files in the `src` folder, so agents can utilize them if needed.
 
 ## Code style
 
@@ -26,12 +26,12 @@ Ditsmod packages and `@ts-stack/*` packages are always published with their sour
 - In TypeScript files, imports should be grouped by the following types and in the following order:
 
   ```ts
-  // 1. Built-in Node.js modules or non-Ditsmod external modules
+  // 1. Built-in Node.js modules or non-Holu external modules
   import path from 'node:path';
   import axios from 'axios';
 
-  // 2. Ditsmod-external modules
-  import { inject } from '@ditsmod/core';
+  // 2. Holu-external modules
+  import { inject } from '@holu/core';
 
   // 3. Subpath Imports / Alias imports / Local / Relative imports
   import { SomeService } from '#services/some-service';

@@ -1,11 +1,11 @@
 ---
-name: ditsmod-rest
-description: Detailed workflow/lifecycle of HTTP requests in a Ditsmod REST application (@ditsmod/rest / RestModule). Covers requestListener, RequestDispatcher, Router, HttpFrontend, GuardedInterceptor, HTTP_INTERCEPTORS, HttpBackend, route-level interceptors via @route(), error handling flow, and customization entry points (overriding RequestDispatcher).
+name: holu-rest
+description: Detailed workflow/lifecycle of HTTP requests in a Holu REST application (@holu/rest / RestModule). Covers requestListener, RequestDispatcher, Router, HttpFrontend, GuardedInterceptor, HTTP_INTERCEPTORS, HttpBackend, route-level interceptors via @route(), error handling flow, and customization entry points (overriding RequestDispatcher).
 ---
 
-# Ditsmod REST Request Lifecycle & Workflow
+# Holu REST Request Lifecycle & Workflow
 
-This skill explains how incoming HTTP requests are processed inside a Ditsmod application configured with `@ditsmod/rest` (`RestModule`), the sequence of interceptors and guards, and how to hook into the workflow at different levels.
+This skill explains how incoming HTTP requests are processed inside a Holu application configured with `@holu/rest` (`RestModule`), the sequence of interceptors and guards, and how to hook into the workflow at different levels.
 
 ---
 
@@ -70,7 +70,7 @@ sequenceDiagram
 
 The Node.js HTTP server listener routes all raw requests directly to `RequestDispatcher.requestListener`:
 
-- **Location:** In `@ditsmod/rest` (`RequestDispatcher` class in `request-dispatcher.ts`).
+- **Location:** In `@holu/rest` (`RequestDispatcher` class in `request-dispatcher.ts`).
 - **Scope:** `providersPerApp` (Application scope singleton).
 - **Key Responsibilities:**
   1. Extracts URL pathname and search parameters.
@@ -85,14 +85,14 @@ The Node.js HTTP server listener routes all raw requests directly to `RequestDis
 
 Matches HTTP request method and URL pathname to register handlers:
 
-- **Location:** In `@ditsmod/rest` (`Router` class in `router.ts`).
+- **Location:** In `@holu/rest` (`Router` class in `router.ts`).
 - **Key Responsibilities:**
   - Finds matching handlers using a tree-based router (`find-my-way` or similar under the hood).
   - Returns a `RouteMatch` containing `{ handle: RouteHandler | null, params: PathParam[] | null }`.
 
 ### Phase 3: The Interceptor Chain (`HTTP_INTERCEPTORS`)
 
-Once a route is matched, Ditsmod executes the route's interceptor chain configured in `RequestDispatcherExtension`. The chain runs as nested calls (`next.handle()`), ordered as follows:
+Once a route is matched, Holu executes the route's interceptor chain configured in `RequestDispatcherExtension`. The chain runs as nested calls (`next.handle()`), ordered as follows:
 
 1. **`HttpFrontend`**
    - _Implementation:_ `RouteScopedHttpFrontend` or `RequestScopedHttpFrontend`.
@@ -101,7 +101,7 @@ Once a route is matched, Ditsmod executes the route's interceptor chain configur
    - _Implementation:_ `RouteScopedGuardedInterceptor` or `RequestScopedGuardedInterceptor`.
    - _Role:_ Iterates over all registered guards (`CanActivate`). If any guard returns `false` or throws, it stops execution and throws a `CustomError` (e.g., `401 Unauthorized` or `403 Forbidden`).
 3. **Custom `HTTP_INTERCEPTORS`**
-   - Registered by the user or other modules (e.g., `@ditsmod/body-parser`, custom logging interceptors).
+   - Registered by the user or other modules (e.g., `@holu/body-parser`, custom logging interceptors).
    - Can also be registered per-route by passing an array of `HttpInterceptor` classes as the 4th parameter of `@route()` (`@route(httpMethod, path, guards, interceptors)`). `InterceptorExtension` extracts these during application setup (`stage1`) and automatically registers them into `HTTP_INTERCEPTORS` for that route (in `providersPerRou` or `providersPerReq` based on controller scope).
 4. **`HttpBackend`**
    - The terminal handler in the chain. It instantiates the target controller (if request-scoped) and calls the bound route method.
@@ -157,8 +157,8 @@ The execution order of HTTP interceptors in the runtime chain is determined by t
 Useful for wrapping the entire routing and execution pipeline inside a tracing context or logger:
 
 ```ts
-import { injectable } from '@ditsmod/core';
-import { RequestDispatcher, RawRequest, RawResponse } from '@ditsmod/rest';
+import { injectable } from '@holu/core';
+import { RequestDispatcher, RawRequest, RawResponse } from '@holu/rest';
 
 @injectable()
 export class CustomRequestDispatcher extends RequestDispatcher {
@@ -180,8 +180,8 @@ export class CustomRequestDispatcher extends RequestDispatcher {
 Catches exceptions thrown during guard or controller execution:
 
 ```ts
-import { injectable } from '@ditsmod/core';
-import { HttpErrorHandler, RequestContext } from '@ditsmod/rest';
+import { injectable } from '@holu/core';
+import { HttpErrorHandler, RequestContext } from '@holu/rest';
 
 @injectable()
 export class CustomHttpErrorHandler implements HttpErrorHandler {
@@ -198,8 +198,8 @@ export class CustomHttpErrorHandler implements HttpErrorHandler {
 Protects routes by returning a boolean or throwing an error:
 
 ```ts
-import { injectable} from '@ditsmod/core';
-import { CanActivate, RequestContext } from '@ditsmod/rest';
+import { injectable} from '@holu/core';
+import { CanActivate, RequestContext } from '@holu/rest';
 
 @injectable()
 export class AuthGuard implements CanActivate {
@@ -218,8 +218,8 @@ export class AuthGuard implements CanActivate {
 Passing interceptors directly in the `@route()` decorator (4th argument):
 
 ```ts
-import { injectable } from '@ditsmod/core';
-import { controller, route, HttpInterceptor, HttpHandler, RequestContext } from '@ditsmod/rest';
+import { injectable } from '@holu/core';
+import { controller, route, HttpInterceptor, HttpHandler, RequestContext } from '@holu/rest';
 
 @injectable()
 export class CustomRouteInterceptor implements HttpInterceptor {
@@ -247,6 +247,6 @@ When graceful shutdown is enabled (`app.enableShutdownHooks()`):
 3. Active in-flight requests are allowed up to `shutdownTimeout` (configured via `AppOptions` in `providersPerApp`, default: 15,000 ms) to finish processing before being forcibly closed.
 4. **`OnShutdown`** hooks are called after the HTTP server has completely closed.
 
-For general details on Ditsmod application lifecycle hooks, see the [ditsmod-core-architecture](../ditsmod-core-architecture/SKILL.md#part-4-application-lifecycle--graceful-shutdown) skill.
+For general details on Holu application lifecycle hooks, see the [holu-core-architecture](../holu-core-architecture/SKILL.md#part-4-application-lifecycle--graceful-shutdown) skill.
 
 ```

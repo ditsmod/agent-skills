@@ -1,25 +1,25 @@
 ---
-name: ditsmod-core-architecture
-description: 'Core concepts of Ditsmod architecture: Modules, Dependency Injection, Metadata Reflector, and Application Lifecycle & Graceful Shutdown. Guidance on module composition, DI hierarchies, providers, scopes, and custom decorator design.'
+name: holu-core-architecture
+description: 'Core concepts of Holu architecture: Modules, Dependency Injection, Metadata Reflector, and Application Lifecycle & Graceful Shutdown. Guidance on module composition, DI hierarchies, providers, scopes, and custom decorator design.'
 ---
 
-# Ditsmod Core Architecture
+# Holu Core Architecture
 
-This skill covers the three fundamental pillars of the Ditsmod framework: the Metadata Reflector, Dependency Injection (DI) and Modules.
+This skill covers the three fundamental pillars of the Holu framework: the Metadata Reflector, Dependency Injection (DI) and Modules.
 
 ## Part 1: Modules
 
 ### Choose The Module Type
 
-Ditsmod applications have two module roles:
+Holu applications have two module roles:
 
 - **Root module** — exactly one per application; entry point for DI composition. Recommended class name: `AppModule`.
 - **Feature module** — encapsulates a cohesive set of providers, controllers, or extensions. Reusable and importable.
 
-`@ditsmod/core` provides `rootModule` and `featureModule` decorators. Both accept the same base metadata properties:
+`@holu/core` provides `rootModule` and `featureModule` decorators. Both accept the same base metadata properties:
 
 ```ts
-import { rootModule, featureModule } from '@ditsmod/core';
+import { rootModule, featureModule } from '@holu/core';
 
 @featureModule({
   imports: [], // Imported modules
@@ -43,16 +43,16 @@ export class SomeModule {}
 export class AppModule {}
 ```
 
-`@ditsmod/rest` and `@ditsmod/trpc` provide specialized module decorators with extended metadata:
+`@holu/rest` and `@holu/trpc` provide specialized module decorators with extended metadata:
 
-- **`@restModule` / `@restRootModule`** (`@ditsmod/rest`): Supports all base properties, plus `controllers: []` and `appends: []` (attaches module controllers under route prefixes without consuming provider exports).
-- **`@trpcModule` / `@trpcRootModule`** (`@ditsmod/trpc`): Supports all base properties, plus `controllers: []` (registers tRPC controllers).
+- **`@restModule` / `@restRootModule`** (`@holu/rest`): Supports all base properties, plus `controllers: []` and `appends: []` (attaches module controllers under route prefixes without consuming provider exports).
+- **`@trpcModule` / `@trpcRootModule`** (`@holu/trpc`): Supports all base properties, plus `controllers: []` (registers tRPC controllers).
 
-> **Do not mix** `@ditsmod/rest` and `@ditsmod/trpc` entities in the same application. Check a package's `peerDependencies` to confirm architectural style compatibility.
+> **Do not mix** `@holu/rest` and `@holu/trpc` entities in the same application. Check a package's `peerDependencies` to confirm architectural style compatibility.
 
 ### Static vs Dynamic Modules
 
-Ditsmod supports importing modules in two forms:
+Holu supports importing modules in two forms:
 
 - **Static Module:** A raw class reference (e.g., `SomeModule`). Use this when importing a module with its default, statically declared metadata and providers.
   ```ts
@@ -74,7 +74,7 @@ Ditsmod supports importing modules in two forms:
 export class UsersModule {}
 ```
 
-**`imports` with `{ path, module }`** (`@ditsmod/rest`) — additionally mounts the imported module's controllers under a route prefix. The `path` property activates controller mounting even when set to an empty string. Use `absolutePath` instead of `path` when the prefix must be absolute (the two are mutually exclusive). Add `guards` to protect all routes in the imported module:
+**`imports` with `{ path, module }`** (`@holu/rest`) — additionally mounts the imported module's controllers under a route prefix. The `path` property activates controller mounting even when set to an empty string. Use `absolutePath` instead of `path` when the prefix must be absolute (the two are mutually exclusive). Add `guards` to protect all routes in the imported module:
 
 ```ts
 @restModule({
@@ -103,8 +103,8 @@ Export provider tokens, not provider objects. `providersPerApp` providers are gl
 Use `getTokens()` when the provider array contains object-form providers (e.g., `{ token, useClass, ... }`), because their tokens cannot be statically extracted otherwise:
 
 ```ts
-import { getTokens } from '@ditsmod/core';
-import { restModule } from '@ditsmod/rest';
+import { getTokens } from '@holu/core';
+import { restModule } from '@holu/rest';
 import { authProviders } from './auth.providers.js';
 
 @restModule({
@@ -154,7 +154,7 @@ export class ApiModule {}
 Use a static factory method when a module is commonly imported with configuration:
 
 ```ts
-import { type DynamicModule } from '@ditsmod/core';
+import { type DynamicModule } from '@holu/core';
 
 export class UsersModule {
   static withPrefix(path: string): DynamicModule<UsersModule> {
@@ -205,7 +205,7 @@ Match the `resolvedCollisionsPer*` array to the provider scope level named in th
 - **Feature module resolution:** Collisions at module, route, or request levels (`resolvedCollisionsPerMod`, `resolvedCollisionsPerRou`, `resolvedCollisionsPerReq`) must be resolved in whichever importing module encounters the conflict.
 - If the collision originates from modules re-exported by a third-party package's root module, remove the conflicting re-exported module from the package root and import it explicitly where needed.
 
-- Default providers exported by `@ditsmod/*` packages (e.g., `Logger`, `ModuleInfo`) are registered automatically. Do not export default providers from feature modules unless explicitly overriding them, to avoid token collisions.
+- Default providers exported by `@holu/*` packages (e.g., `Logger`, `ModuleInfo`) are registered automatically. Do not export default providers from feature modules unless explicitly overriding them, to avoid token collisions.
 
 ### Module Assembly Checklist & Common Mistakes
 
@@ -219,7 +219,7 @@ Match the `resolvedCollisionsPer*` array to the provider scope level named in th
 ## Part 2: Dependency Injection
 
 > [!IMPORTANT]
-> In Ditsmod applications, providers are registered inside modules (such as in `providersPer*` arrays) which shape the DI hierarchy. Before registering or wiring providers in application code, you **must** read the Modules section above to understand provider visibility, imports/exports, and collision resolution. Note that in unit tests, injectors can be instantiated directly (e.g., using `Injector.resolveAndCreate()`) without modules.
+> In Holu applications, providers are registered inside modules (such as in `providersPer*` arrays) which shape the DI hierarchy. Before registering or wiring providers in application code, you **must** read the Modules section above to understand provider visibility, imports/exports, and collision resolution. Note that in unit tests, injectors can be instantiated directly (e.g., using `Injector.resolveAndCreate()`) without modules.
 
 ### Working Rules
 
@@ -248,7 +248,7 @@ Match the `resolvedCollisionsPer*` array to the provider scope level named in th
 Recognize these provider forms:
 
 ```ts
-import { InjectionToken, type Provider } from '@ditsmod/core';
+import { InjectionToken, type Provider } from '@holu/core';
 
 class Logger {}
 class ConsoleLogger extends Logger {}
@@ -280,7 +280,7 @@ A `TokenProvider` creates an alias to another token. It is **not self-sufficient
 - `ClassFactoryProvider`: Use when the factory method needs decorated parameters (`@inject`, `@optional`, `@ctx`, `@input`). The factory class must use `@factoryMethod()` on the target method:
 
   ```ts
-  import { factoryMethod, optional, LoggerConfig, Logger } from '@ditsmod/core';
+  import { factoryMethod, optional, LoggerConfig, Logger } from '@holu/core';
 
   class PatchLogger {
     @factoryMethod()
@@ -308,11 +308,11 @@ const provider = {
 
 #### Parameter Validation & Transformation (Pipes)
 
-Ditsmod implements parameter validation/transformation inside `FactoryProvider` logic using `@input` (for class factories) or `deps: [Context, input]` (for function factories). Passing input to `@inject(Token, 'paramName')` disables caching and executes the factory afresh for each injection site. See [Parameter Validation & Transformation (Pipes)](references/REFERENCE.md#parameter-validation--transformation-pipes-via-factory-providers) in `references/REFERENCE.md` for full implementation details.
+Holu implements parameter validation/transformation inside `FactoryProvider` logic using `@input` (for class factories) or `deps: [Context, input]` (for function factories). Passing input to `@inject(Token, 'paramName')` disables caching and executes the factory afresh for each injection site. See [Parameter Validation & Transformation (Pipes)](references/REFERENCE.md#parameter-validation--transformation-pipes-via-factory-providers) in `references/REFERENCE.md` for full implementation details.
 
 ### Injector Hierarchy
 
-Ditsmod application injectors are organized as a parent-child hierarchy (top = root/ancestor, bottom = deepest child):
+Holu application injectors are organized as a parent-child hierarchy (top = root/ancestor, bottom = deepest child):
 
 ```
 providersPerApp   ← root (ancestor)
@@ -366,7 +366,7 @@ To make one multi-provider entry substitutable, point the multi-provider at a cl
 
 ### Context
 
-Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `createInjectionSymbol<T>()` for typed context keys. In modular Ditsmod applications importing `ContextModule` (re-exported by `@ditsmod/rest`), context providers are included automatically.
+Use `Context` when data must be set after injector creation and read later at the same or lower injector level. Use `createInjectionSymbol<T>()` for typed context keys. In modular Holu applications importing `ContextModule` (re-exported by `@holu/rest`), context providers are included automatically.
 
 - **`ctx.get(key)`**: Retrieves value from current `Context` instance.
 - **`ctx.getInScope(key, injector)`**: Traverses up the injector hierarchy to find value across nested context instances. See [references/REFERENCE.md](references/REFERENCE.md#contextgetinscope-vs-contextget) for detailed examples.
@@ -378,7 +378,7 @@ When an `@injectable()` class extends a parent class, DI automatically injects a
 **Recommended approach (`@ts-expect-error`):**
 
 ```ts
-import { ParentParams, injectable } from '@ditsmod/core/di';
+import { ParentParams, injectable } from '@holu/core/di';
 
 @injectable()
 class Child extends Parent {
@@ -399,7 +399,7 @@ For alternative type-safe options without `@ts-expect-error`, see [ParentParams 
 A service or controller can access the specific injector instance that instantiated it by requesting `Injector` directly in its constructor. This pattern is primarily used for **lazy loading** dependencies at runtime:
 
 ```ts
-import { injectable, Injector } from '@ditsmod/core';
+import { injectable, Injector } from '@holu/core';
 
 @injectable()
 export class SecondService {
@@ -422,7 +422,7 @@ export class SecondService {
 
 ## Part 3: Metadata Reflector
 
-Ditsmod's `Reflector` provides a unified, cached, and high-level abstraction over standard reflection metadata:
+Holu's `Reflector` provides a unified, cached, and high-level abstraction over standard reflection metadata:
 
 - **Unified Decorators:** It generates type-safe decorators that automatically register metadata in internal registries when evaluated.
 - **Inheritance Traversal:** It merges class, property, and parameter metadata from parent classes down to children.
@@ -443,22 +443,22 @@ For reflection metadata to work, ensure these requirements are met:
    }
    ```
 2. **Runtime Polyfill:**
-   `reflect-metadata/lite` must be imported before any decorators are evaluated. In typical Ditsmod applications, this is already imported automatically by `@ditsmod/core`, so you do **not** need to add it manually to the application entry points.
+   `reflect-metadata/lite` must be imported before any decorators are evaluated. In typical Holu applications, this is already imported automatically by `@holu/core`, so you do **not** need to add it manually to the application entry points.
 3. **Test Setup:**
-   In test configurations (like Jest or Vitest), if `@ditsmod/core` is not imported early enough (or at all), ensure `reflect-metadata/lite` is loaded via `setupFilesAfterEnv` or an explicit top-level import.
+   In test configurations (like Jest or Vitest), if `@holu/core` is not imported early enough (or at all), ensure `reflect-metadata/lite` is loaded via `setupFilesAfterEnv` or an explicit top-level import.
 
 For details on creating custom decorators, collecting metadata, inheritance chains, and programmatic metadata writing, see [references/REFERENCE.md](references/REFERENCE.md#part-4-metadata-reflector-references).
 
 ## Part 4: Application Lifecycle & Graceful Shutdown
 
-Ditsmod supports graceful shutdown, allowing applications to stop accepting new requests, wait for active requests to finish, and execute resource cleanup in singleton services before exiting cleanly.
+Holu supports graceful shutdown, allowing applications to stop accepting new requests, wait for active requests to finish, and execute resource cleanup in singleton services before exiting cleanly.
 
 ### Enabling Process Signal Interception
 
 Graceful shutdown is activated on the application instance (typically in `main.ts`):
 
 ```ts
-import { RestApplication } from '@ditsmod/rest';
+import { RestApplication } from '@holu/rest';
 import { AppModule } from './app/app.module.js';
 
 const app = await RestApplication.create(AppModule);
@@ -485,7 +485,7 @@ For implementation code examples (`BeforeShutdown` / `OnShutdown`), `customShutd
 
 ## Part 5: Logging, LogMediator & Log Buffering
 
-Ditsmod uses `LogMediator` as a strongly-typed abstraction over `Logger`. Modules create custom log mediators extending `LogMediator` (e.g., `OpenapiLogMediator` or `AuthjsLogMediator`) with typed methods calling `this.setLog(level, msg)`.
+Holu uses `LogMediator` as a strongly-typed abstraction over `Logger`. Modules create custom log mediators extending `LogMediator` (e.g., `OpenapiLogMediator` or `AuthjsLogMediator`) with typed methods calling `this.setLog(level, msg)`.
 
 During application bootstrap (`bufferLogs: true`), logs written via `setLog()` are held in a static buffer (`LogMediator.buffer`) instead of outputting immediately. Once bootstrap completes, `systemLogMediator.flush()` formats and outputs all buffered logs at the resolved log level.
 
@@ -509,7 +509,7 @@ For complete code examples, typed method design, log buffering mechanics, and ov
 ### Metadata Reflector Troubleshooting Checklist
 
 1. **`Reflect.defineMetadata is not a function` error:**
-   - Ensure `@ditsmod/core` is imported (which automatically loads `reflect-metadata/lite` at startup), or explicitly import `reflect-metadata/lite` in entry points/test configurations that do not load `@ditsmod/core` early enough (e.g. `setupFilesAfterEnv` in Jest).
+   - Ensure `@holu/core` is imported (which automatically loads `reflect-metadata/lite` at startup), or explicitly import `reflect-metadata/lite` in entry points/test configurations that do not load `@holu/core` early enough (e.g. `setupFilesAfterEnv` in Jest).
 2. **Missing metadata for constructor arguments or properties:**
    - Verify that the class is decorated (e.g. with `@injectable()`, `@controller()`, etc.). If a class or property has no decorators at all, the TypeScript compiler will not emit any design metadata, even with `emitDecoratorMetadata` enabled.
    - Verify that `"emitDecoratorMetadata": true` and `"experimentalDecorators": true` are enabled in `tsconfig.json`.

@@ -1,16 +1,16 @@
 ---
-name: ditsmod-schedule
-description: 'Scheduling tasks in Ditsmod with @ditsmod/schedule: @cron / @interval / @timeout decorators, CronExpression enum, CronOptions, SchedulerRegistry (query/start/stop/delete tasks at runtime), ScheduleModule setup, provider scope constraints (only providersPerMod / providersPerApp), graceful shutdown behavior, and dynamic task management patterns.'
+name: holu-schedule
+description: 'Scheduling tasks in Holu with @holu/schedule: @cron / @interval / @timeout decorators, CronExpression enum, CronOptions, SchedulerRegistry (query/start/stop/delete tasks at runtime), ScheduleModule setup, provider scope constraints (only providersPerMod / providersPerApp), graceful shutdown behavior, and dynamic task management patterns.'
 ---
 
-# Ditsmod Schedule
+# Holu Schedule
 
-`@ditsmod/schedule` provides decorator-based task scheduling — cron jobs, periodic intervals, and one-shot timeouts — for Ditsmod applications. Scheduling is implemented as a Ditsmod extension (`ScheduleExtension`) and requires no manual wiring beyond importing `ScheduleModule`.
+`@holu/schedule` provides decorator-based task scheduling — cron jobs, periodic intervals, and one-shot timeouts — for Holu applications. Scheduling is implemented as a Holu extension (`ScheduleExtension`) and requires no manual wiring beyond importing `ScheduleModule`.
 
 ## Installation
 
 ```bash
-yarn add @ditsmod/schedule
+yarn add @holu/schedule
 ```
 
 ## Module Setup
@@ -18,8 +18,8 @@ yarn add @ditsmod/schedule
 Import `ScheduleModule` in any root or feature module. Register task classes in `providersPerMod` (or `providersPerApp`) of that same module — **not** in `providersPerRou` or `providersPerReq`.
 
 ```ts
-import { rootModule } from '@ditsmod/core';
-import { ScheduleModule } from '@ditsmod/schedule';
+import { rootModule } from '@holu/core';
+import { ScheduleModule } from '@holu/schedule';
 
 import { ReportTasks } from './report-tasks.service.js';
 import { CleanupTasks } from './cleanup-tasks.service.js';
@@ -39,8 +39,8 @@ export class AppModule {}
 Create an `@injectable()` service and decorate its methods with `@cron`, `@interval`, or `@timeout`. Each decorator attaches metadata that the `ScheduleExtension` reads during bootstrap.
 
 ```ts
-import { injectable, Logger } from '@ditsmod/core';
-import { cron, interval, timeout, CronExpression } from '@ditsmod/schedule';
+import { injectable, Logger } from '@holu/core';
+import { cron, interval, timeout, CronExpression } from '@holu/schedule';
 
 @injectable()
 export class ReportTasks {
@@ -143,7 +143,7 @@ Runs the method **once** after `timeout` milliseconds via `setTimeout`. If only 
 `CronExpression` provides a curated set of named expressions to avoid hard-coding cron strings:
 
 ```ts
-import { CronExpression } from '@ditsmod/schedule';
+import { CronExpression } from '@holu/schedule';
 
 @cron(CronExpression.EVERY_5_SECONDS)
 @cron(CronExpression.EVERY_HOUR)
@@ -175,8 +175,8 @@ Key members (supports both 5-field standard and 6-field seconds-precision expres
 `SchedulerRegistry` is registered at application scope (`providersPerApp`) and is injectable anywhere in the application — services, controllers, etc.
 
 ```ts
-import { injectable } from '@ditsmod/core';
-import { SchedulerRegistry } from '@ditsmod/schedule';
+import { injectable } from '@holu/core';
+import { SchedulerRegistry } from '@holu/schedule';
 
 @injectable()
 export class TaskManagerService {
@@ -255,7 +255,7 @@ customJob.start();
 
 ## Graceful Shutdown
 
-`SchedulerOrchestrator` implements the Ditsmod `BeforeShutdown` lifecycle hook. On application shutdown it automatically:
+`SchedulerOrchestrator` implements the Holu `BeforeShutdown` lifecycle hook. On application shutdown it automatically:
 
 1. Clears all pending `initialDelay` timers.
 2. Stops and deletes all registered cron jobs.
@@ -324,6 +324,6 @@ The `ScheduleExtension` is registered with `exportOnly: true` in `ScheduleModule
 | Warning: `Cannot register schedule on "Foo@bar"...`  | Task class is in `providersPerRou` or `providersPerReq`. Move it to `providersPerMod`.                              |
 | `getCronJob(name)` throws `No Scheduler found`       | Name not provided in `CronOptions`, or the task was already deleted. Use `doesExist()` first.                       |
 | `addCronJob(name, job)` throws `Duplicate Scheduler` | Two decorated methods share the same `name`. Each name must be unique across the entire application.                |
-| Cron job not stopped on shutdown                     | Ensure Ditsmod shutdown hooks are properly triggered. `SchedulerOrchestrator.beforeShutdown()` handles cleanup.     |
+| Cron job not stopped on shutdown                     | Ensure Holu shutdown hooks are properly triggered. `SchedulerOrchestrator.beforeShutdown()` handles cleanup.     |
 | `initialDelay` not working                           | Check that `disabled` is not also set to `true` — combining both prevents automatic start.                          |
 | Anonymous tasks not retrievable by name              | Tasks without a `name` are assigned a random UUID at runtime. Always provide a `name` for tasks you need to manage. |
