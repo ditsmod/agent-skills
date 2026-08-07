@@ -1,21 +1,15 @@
 # Holu Agent Skills
 
-A collection of [Agent Skills](https://github.com/vercel-labs/skills) for AI coding assistants (such as Claude Code, Gemini CLI, Cursor, Copilot, Codex, and others) working with [Holu](https://holu.github.io/en/).
+A collection of [Agent Skills](https://github.com/vercel-labs/skills) for AI coding assistants (such as Claude Code, Gemini CLI, Cursor, Copilot, Codex, and others) working with [Holu](https://holujs.github.io/en/).
 
-[Holu](https://holu.github.io/en/) is a TypeScript Node.js web framework built around decorators, modules, dependency injection, extensions, metadata reflection, and explicit module composition.
+[Holu](https://holujs.github.io/en/) is a TypeScript Node.js web framework built around decorators, modules, dependency injection, extensions, metadata reflection, and explicit module composition.
 
 ## 🚀 Installation
 
 Install all available skills at once into your project using the `skills` CLI:
 
 ```bash
-npx skills add holu/agent-skills --skill '*' -y
-```
-
-Or install specific skills individually:
-
-```bash
-npx skills add holu/agent-skills --skill holu-core-architecture -y
+npx skills add https://github.com/holujs/agent-skills --skill '*' -y
 ```
 
 ## 📦 Available Skills
